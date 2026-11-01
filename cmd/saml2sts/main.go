@@ -36,6 +36,6 @@ func newRootCmd() *cobra.Command {
 		// Usage would bury the error, and stdout may carry credential_process output.
 		SilenceUsage: true,
 	}
-	root.AddCommand(newLoginCmd(), newCredsCmd(), newExecCmd(), newRolesCmd(), newProfilesCmd(), newLogoutCmd(), newInstallCmd())
+	root.AddCommand(newLoginCmd(), newCredsCmd(), newExecCmd(), newRolesCmd(), newProfilesCmd(), newLogoutCmd(), newInstallCmd(), newDoctorCmd())
 	return root
 }

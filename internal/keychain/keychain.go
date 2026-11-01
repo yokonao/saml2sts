@@ -72,3 +72,49 @@ func DeleteService(service string) error {
 		}
 	}
 }
+
+// Accounts lists the accounts of service's items, without reading their data.
+func Accounts(service string) ([]string, error) {
+	res, err := security.CopyMatching(security.Attrs{
+		security.Class:            security.ClassGenericPassword,
+		security.AttrService:      service,
+		security.ReturnAttributes: true,
+		security.MatchLimit:       security.MatchLimitAll,
+	})
+	if errors.Is(err, security.ErrItemNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("list %s in Keychain: %w", service, err)
+	}
+	items, _ := res.([]any)
+	var accounts []string
+	for _, it := range items {
+		if d, ok := it.(security.Dict); ok {
+			if a, ok := d.Get(security.AttrAccount); ok {
+				if s, ok := a.(string); ok {
+					accounts = append(accounts, s)
+				}
+			}
+		}
+	}
+	return accounts, nil
+}
+
+// ErrWouldPrompt is returned by ReadNoUI for an item macOS would ask the
+// user about, such as one another binary wrote.
+var ErrWouldPrompt = errors.New("reading it needs a Keychain prompt")
+
+// ReadNoUI is Read with the Keychain prompts of this process turned off.
+func ReadNoUI(item Item) ([]byte, error) {
+	restore, err := disallowInteraction()
+	if err != nil {
+		return nil, err
+	}
+	defer restore()
+	data, err := Read(item)
+	if errors.Is(err, security.ErrInteractionNotAllowed) {
+		return nil, fmt.Errorf("%s: %w", item.Service, ErrWouldPrompt)
+	}
+	return data, err
+}

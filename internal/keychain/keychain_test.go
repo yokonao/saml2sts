@@ -50,3 +50,22 @@ func TestDeleteService(t *testing.T) {
 		t.Errorf("DeleteService of nothing: %v", err)
 	}
 }
+
+func TestAccountsAndReadNoUI(t *testing.T) {
+	service := fmt.Sprintf("saml2sts.test.%d.noui", os.Getpid())
+	t.Cleanup(func() { _ = DeleteService(service) })
+	if a, err := Accounts(service); a != nil || err != nil {
+		t.Fatalf("Accounts of no items = %v, %v", a, err)
+	}
+	for _, a := range []string{"a", "b"} {
+		if err := Write(Item{Service: service, Account: a}, []byte(a)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if a, err := Accounts(service); len(a) != 2 || err != nil {
+		t.Errorf("Accounts = %v, %v", a, err)
+	}
+	if data, err := ReadNoUI(Item{Service: service, Account: "a"}); string(data) != "a" || err != nil {
+		t.Errorf("ReadNoUI = %q, %v", data, err)
+	}
+}

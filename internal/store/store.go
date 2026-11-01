@@ -12,6 +12,7 @@ package store
 import (
 	"crypto/subtle"
 	"encoding/json"
+	"fmt"
 	"slices"
 	"time"
 
@@ -168,4 +169,29 @@ func read[T any](item keychain.Item) (*T, error) {
 		return nil, err
 	}
 	return &v, nil
+}
+
+// CheckAccess reads the list of roles and every cached credential with the
+// Keychain prompts turned off. It returns how many items it read and an
+// error for each item macOS would ask about.
+func CheckAccess() (int, []error) {
+	items := []keychain.Item{loginItem("roles")}
+	accounts, err := keychain.Accounts(service + ".credentials")
+	if err != nil {
+		return 0, []error{err}
+	}
+	for _, a := range accounts {
+		items = append(items, cacheItem(a))
+	}
+	n := 0
+	var errs []error
+	for _, item := range items {
+		b, err := keychain.ReadNoUI(item)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("%s %s: %w", item.Service, item.Account, err))
+		} else if b != nil {
+			n++
+		}
+	}
+	return n, errs
 }
