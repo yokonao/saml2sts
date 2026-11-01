@@ -14,8 +14,6 @@ const CHROME = "156.0.8078.80";
 // A Firefox downloaded into .cache cannot start its content processes on
 // macOS 27, so the installed one is used.
 const FIREFOX = process.env.FIREFOX ?? "/Applications/Firefox.app/Contents/MacOS/firefox";
-const CHROME_EXTENSION_ID = "ljanpcedhfnidohflcgdjflhhjebpikb";
-const FIREFOX_EXTENSION_ID = "saml2sts@yokonao.github.io";
 const IDP_URL = "http://127.0.0.1:8080/realms/poc/protocol/saml/clients/aws";
 
 const which = process.env.E2E_BROWSER ?? "chrome";
@@ -93,11 +91,7 @@ async function waitForTab(page, query) {
 let browser;
 try {
   run(["go", "build", "-o", bin, "./cmd/saml2sts"]);
-  if (firefox) {
-    run([bin, "install", "--browser", "firefox", "--extension-id", FIREFOX_EXTENSION_ID]);
-  } else {
-    run([bin, "install", "--extension-id", CHROME_EXTENSION_ID, "--user-data-dir", userDataDir]);
-  }
+  run(["dev/register-host.sh", bin, firefox ? "firefox" : userDataDir]);
 
   let executablePath = FIREFOX;
   if (!firefox) {

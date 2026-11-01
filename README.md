@@ -115,12 +115,12 @@ The diagram above is drawn in `docs/flow.html`; `cd dev/browser && npm run diagr
 To go through your own Chrome:
 
 1. Open `chrome://extensions`, turn on developer mode, and load `extension/` unpacked. The manifest's `key` pins its ID to `ljanpcedhfnidohflcgdjflhhjebpikb`.
-2. Register the host:
+2. Register the host for your user:
    ```sh
    go build -o bin/saml2sts ./cmd/saml2sts
-   bin/saml2sts install --extension-id ljanpcedhfnidohflcgdjflhhjebpikb
+   dev/register-host.sh bin/saml2sts chrome
    ```
-   Use the same `bin/saml2sts` for the CLI, since the Keychain items trust only the binary that wrote them.
+   Use the same `bin/saml2sts` for the CLI, since the Keychain items trust only the binary that wrote them. A user-level host is for development only, since any program running as you can replace it; `doctor` warns about it.
 3. Point `~/.config/saml2sts/config.toml` at Keycloak and floci:
    ```toml
    [idp]
@@ -142,7 +142,7 @@ To go through your own Chrome:
    ```
    The first call signs in for the role; the Keycloak session from step 4 completes it without the form. Once the credentials are in, the extension replaces the tab with a page telling you to return to the terminal.
 
-To go through Firefox instead, build its copy of the extension with `cd dev/browser && npm run firefox-extension`, since Firefox runs background code only as scripts, which Chrome rejects. Load it from `about:debugging#/runtime/this-firefox` with "Load Temporary Add-on…" (pick `dist/firefox-extension/manifest.json`), register the host with `bin/saml2sts install --browser firefox --extension-id saml2sts@yokonao.github.io`, and run `login` with `--no-open` if Firefox is not your default browser.
+To go through Firefox instead, build its copy of the extension with `cd dev/browser && npm run firefox-extension`, since Firefox runs background code only as scripts, which Chrome rejects. Load it from `about:debugging#/runtime/this-firefox` with "Load Temporary Add-on…" (pick `dist/firefox-extension/manifest.json`), register the host with `dev/register-host.sh bin/saml2sts firefox`, and run `login` with `--no-open` if Firefox is not your default browser.
 
 ### floci quirks
 

@@ -18,8 +18,12 @@ import (
 
 	"github.com/yokonao/saml2sts/internal/config"
 	"github.com/yokonao/saml2sts/internal/keychain"
+	"github.com/yokonao/saml2sts/internal/rootowned"
 	"github.com/yokonao/saml2sts/internal/store"
 )
+
+// placeManifest is the fix for a missing or broken host manifest.
+const placeManifest = "place the host manifest as https://github.com/yokonao/saml2sts/blob/main/docs/enterprise.md#place-the-native-messaging-host-manifests describes"
 
 // report prints check results and counts the failures.
 type report struct {
@@ -164,7 +168,7 @@ func checkManifests(r *report, name, exe string) map[string][]string {
 		}
 		var m hostManifest
 		if err := json.Unmarshal(b, &m); err != nil {
-			r.fail("run saml2sts install again", "%s: %v", label, err)
+			r.fail(placeManifest, "%s: %v", label, err)
 			continue
 		}
 		allowed := append(slices.Clone(m.AllowedExtensions), m.AllowedOrigins...)
@@ -172,24 +176,39 @@ func checkManifests(r *report, name, exe string) map[string][]string {
 			ids[l.browser] = append(ids[l.browser], strings.TrimSuffix(strings.TrimPrefix(o, "chrome-extension://"), "/"))
 		}
 		ids[l.browser] = append(ids[l.browser], m.AllowedExtensions...)
+		// Every user's browser starts what a machine-wide manifest names.
+		var fileErr, binErr error
+		if l.system {
+			fileErr, binErr = rootowned.Check(l.file), rootowned.Check(m.Path)
+		}
 		fi, err := os.Stat(m.Path)
 		switch {
 		case err != nil:
-			r.fail("run saml2sts install again from the binary you use", "%s: binary %s: %v", label, m.Path, err)
+			r.fail(placeManifest+", naming the binary you use", "%s: binary %s: %v", label, m.Path, err)
 		case !fi.Mode().IsRegular() || fi.Mode().Perm()&0o111 == 0:
-			r.fail("make "+m.Path+" executable, or run saml2sts install again", "%s: %s is not an executable file", label, m.Path)
+			r.fail("make "+m.Path+" executable", "%s: %s is not an executable file", label, m.Path)
 		case len(allowed) == 0:
-			r.fail("run saml2sts install with --extension-id", "%s: no extension is allowed", label)
+			r.fail(placeManifest+", with the extension ID", "%s: no extension is allowed", label)
+		case fileErr != nil:
+			r.fail("make the manifest and the directories above it owned by root and writable by no one else",
+				"%s: %v; a program running as a user could change which binary the browser starts", label, fileErr)
+		case binErr != nil:
+			r.fail("install the binary in a path only root can change, such as /usr/local/bin",
+				"%s: %v; a program running as a user could replace the binary the browser starts", label, binErr)
 		default:
 			r.ok("%s -> %s, allows %s", label, m.Path, strings.Join(allowed, ", "))
 			if !sameFile(m.Path, exe) {
-				r.warn("run the CLI from "+m.Path+", or install this binary",
+				r.warn("run the CLI from "+m.Path,
 					"%s: the host is not this binary (%s); Keychain items trust only the binary that wrote them", l.browser, exe)
+			}
+			if !l.system {
+				r.warn("remove it unless you are developing saml2sts, and register the host machine-wide",
+					"%s: a user-level manifest, which any program running as you can change and which wins over the machine-wide one", l.browser)
 			}
 		}
 	}
 	if !found {
-		r.fail("run saml2sts install --extension-id <ID>", "no host manifest for any browser")
+		r.fail(placeManifest, "no host manifest for any browser")
 	}
 	return ids
 }
@@ -229,7 +248,7 @@ func checkExtensions(r *report, ids map[string][]string) {
 			r.ok("%s: %s", n, strings.Join(hits, ", "))
 			continue
 		}
-		r.warn("install the extension with one of the allowed IDs, or pass its ID to saml2sts install",
+		r.warn("install the extension with one of the allowed IDs, or allow its ID in the host manifest",
 			"%s: no profile has an allowed extension (%s); a temporary add-on does not show here", n, strings.Join(ids[n], ", "))
 	}
 }

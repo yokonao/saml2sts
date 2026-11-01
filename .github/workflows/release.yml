@@ -10,13 +10,25 @@ on:
 permissions: {}
 
 jobs:
+  # Only a fork that builds its own copy publishes binaries; this repository
+  # does not. See docs/enterprise.md.
   release:
+    if: vars.SAML2STS_HOST_NAME != ''
     runs-on: ubuntu-latest
     permissions:
       contents: write
       id-token: write
       attestations: write
     steps:
+      - name: Require the signing secrets
+        env:
+          MACOS_SIGN_P12: ${{ secrets.MACOS_SIGN_P12 }}
+          MACOS_NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY }}
+        run: |
+          if [ -z "$MACOS_SIGN_P12" ] || [ -z "$MACOS_NOTARY_KEY" ]; then
+            echo "::error::set the MACOS_SIGN_* and MACOS_NOTARY_* secrets; see docs/enterprise.md"
+            exit 1
+          fi
       - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0

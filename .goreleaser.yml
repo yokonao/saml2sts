@@ -18,8 +18,8 @@ builds:
       - -s -w -X main.version={{.Version}}
       - -X main.defaultHostName={{ or (envOrDefault "SAML2STS_HOST_NAME" "") "io.github.yokonao.saml2sts" }}
 
-# Signs with a Developer ID and notarizes when the secrets are there, so a
-# fork only adds them.
+# Signs with a Developer ID and notarizes when the secrets are there; the
+# release workflow requires them, and a local snapshot goes without.
 notarize:
   macos:
     - enabled: '{{ ne (envOrDefault "MACOS_SIGN_P12" "") "" }}'
