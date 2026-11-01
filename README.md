@@ -38,7 +38,7 @@ dev = { arn = "arn:aws:iam::123456789012:role/developer", duration = "12h" }  # 
 
 A role's `duration` replaces `[idp] duration` for that role. When STS rejects a duration as longer than the role allows, saml2sts says so and signs in for 1 hour instead.
 
-The native messaging host, which the browser starts, reads this file too, so keep it at this path rather than pointing `SAML2STS_CONFIG` elsewhere. An organization can fix settings in `/Library/Application Support/saml2sts/config.toml`, which wins over this file; see [Deploying saml2sts in an organization](docs/organizations.md).
+The native messaging host, which the browser starts, reads this file too, so keep it at this path rather than pointing `SAML2STS_CONFIG` elsewhere. An organization can fix settings in `/Library/Application Support/saml2sts/config.toml`, which wins over this file; see [Running saml2sts in an enterprise](docs/enterprise.md).
 
 Then let saml2sts write an AWS profile for each role your IdP allows, and use them as usual:
 
@@ -136,13 +136,4 @@ To go through Firefox instead, build its copy of the extension with `cd dev/brow
 
 ## Security model
 
-- Logins and credentials are kept in the OS secure storage, which is the macOS Keychain today. Items are created with the default access list, which lets only the saml2sts binary that created them read them without a prompt. Rebuilding or upgrading makes a new binary, and macOS asks once for the old items.
-- Items are deleted and re-added rather than updated, so an item another program planted with a looser access list is never written to.
-- The login request carries a random secret the host echoes back, so the CLI ignores results it did not ask for.
-- The host reads the STS endpoint from the config file, never from the login request, so a planted request cannot send the SAML response elsewhere. `sts_endpoint` must be HTTPS, or HTTP to localhost. The user config is writable by any program running as you, so an organization should fix `sts_endpoint` in the root-owned system config, which wins over it.
-- Each sign-in assumes only the one role asked for or chosen, never every role the IdP allows.
-- The CLI opens the IdP with a random nonce in the URL fragment, which the browser does not send to the IdP. The extension forwards only the next SAML response from the tab opened with it, together with the nonce, and the host ignores a response whose nonce does not match the waiting login. Any other sign-in is never read further or sent to the host, and a page posting a SAML response of its own cannot answer a login.
-- To see which tab saml2sts opened, the extension reads the URL of each page a tab starts loading (the `webNavigation` permission, which browsers describe as reading your browsing history). It keeps nothing but the nonce and the tab, in memory, and only for a tab whose URL carries one.
-- Credentials are never written to `~/.aws/credentials`, arguments, or logs.
-
-It does not protect against a compromised user session or saml2sts binary, or against a program the user allows at a Keychain prompt. A program running as you can also run saml2sts itself and get credentials that way; the access list only keeps other tools from reading the items.
+The SAML response and the credentials stay in the macOS Keychain and the host, and the extension forwards only the sign-in saml2sts opened. See the [security model](docs/security.md) for what saml2sts protects against and what it does not, and [SECURITY.md](SECURITY.md) to report a vulnerability.

@@ -18,7 +18,7 @@ mkdir -p ~/.local/bin
 install -m 755 saml2sts ~/.local/bin/
 ```
 
-The macOS binaries of this repository are not signed with a Developer ID or notarized; an organization can sign its own builds, see [Deploying saml2sts in an organization](organizations.md#build-sign-and-distribute-your-own-copy). `gh` and `curl` do not mark downloads as quarantined, but a browser does, and macOS then refuses to run the binary; remove the mark with `xattr -d com.apple.quarantine saml2sts`.
+The macOS binaries of this repository are not signed with a Developer ID or notarized; an organization can sign its own builds, see [Running saml2sts in an enterprise](enterprise.md#build-and-sign-your-own-copy). `gh` and `curl` do not mark downloads as quarantined, but a browser does, and macOS then refuses to run the binary; remove the mark with `xattr -d com.apple.quarantine saml2sts`.
 
 ### Verify the archive
 
@@ -59,4 +59,4 @@ saml2sts install --browser firefox --extension-id saml2sts@yokonao.github.io  # 
 
 `install` registers the path of the running binary. A version manager runs a version-specific path that an upgrade removes, so with mise pass a path that stays, such as `--path ~/.local/share/mise/shims/saml2sts`.
 
-The Chrome ID is fixed by the `key` in `extension/manifest.json`. An organization that signs its own build gets its own ID and passes that instead. To register the host for every user of a machine, see [Deploying saml2sts in an organization](organizations.md#register-the-native-messaging-host-for-the-whole-machine).
+The Chrome ID is fixed by the `key` in `extension/manifest.json`. An organization that signs its own build gets its own ID and passes that instead. To register the host for every user of a machine, see [Running saml2sts in an enterprise](enterprise.md#register-the-native-messaging-host-for-the-whole-machine).
