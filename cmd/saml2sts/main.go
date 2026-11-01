@@ -13,8 +13,8 @@ import (
 var version = "dev"
 
 func main() {
-	if startedByBrowser(os.Args[1:]) {
-		if err := runNativeHost(os.Stdin, os.Stdout); err != nil {
+	if handled, err := runBrowserHost(os.Args[1:]); handled {
+		if err != nil {
 			os.Exit(1)
 		}
 		return
@@ -36,6 +36,6 @@ func newRootCmd() *cobra.Command {
 		// Usage would bury the error, and stdout may carry credential_process output.
 		SilenceUsage: true,
 	}
-	root.AddCommand(newLoginCmd(), newCredsCmd(), newExecCmd(), newRolesCmd(), newProfilesCmd(), newLogoutCmd(), newInstallCmd(), newDoctorCmd())
+	root.AddCommand(subcommands()...)
 	return root
 }

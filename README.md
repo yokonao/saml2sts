@@ -7,7 +7,7 @@ A browser extension reads the SAML response your IdP posts to AWS on its way the
 > [!NOTE]
 > If you can use AWS IAM Identity Center, use `aws sso login` instead. saml2sts is for organizations that federate IAM roles with SAML directly.
 
-Status: proof of concept. macOS, with Chromium-based browsers or Firefox.
+Status: proof of concept. The sign-in machine runs macOS, with a Chromium-based browser or Firefox. A Linux work machine gets credentials through the [agent](docs/agent.md).
 
 ## How it works
 

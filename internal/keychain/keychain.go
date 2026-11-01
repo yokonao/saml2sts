@@ -1,3 +1,5 @@
+//go:build darwin
+
 // Package keychain stores generic passwords in the login Keychain, where
 // SecItemAdd's default access list trusts only the running binary.
 package keychain

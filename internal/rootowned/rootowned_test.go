@@ -1,3 +1,8 @@
+//go:build darwin
+
+// The test needs a temporary directory that no other user can write to, as
+// on macOS but not under /tmp on Linux.
+
 package rootowned
 
 import (

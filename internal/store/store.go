@@ -1,3 +1,5 @@
+//go:build darwin
+
 // Package store holds the secure storage items through which the CLI and the
 // native messaging host, which the browser starts, hand a login to each other:
 //

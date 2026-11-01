@@ -9,22 +9,17 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/yokonao/saml2sts/internal/config"
 	"github.com/yokonao/saml2sts/internal/federation"
 )
 
 func newExecCmd() *cobra.Command {
-	var f loginFlags
+	var f roleFlags
 	cmd := &cobra.Command{
 		Use:   "exec --role <role> -- <command> [args...]",
 		Short: "Run a command with credentials in its environment",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.Load()
-			if err != nil {
-				return err
-			}
-			c, roleARN, err := f.credentials(cmd, cfg, false, nil)
+			c, roleARN, err := f.fetch(cmd)
 			if err != nil {
 				return err
 			}
