@@ -33,7 +33,10 @@ sts_endpoint = "https://..."  # optional, e.g. a VPC endpoint; the SAML response
 
 [roles]  # optional short names
 prod-admin = "arn:aws:iam::123456789012:role/admin"
+dev = { arn = "arn:aws:iam::123456789012:role/developer", duration = "12h" }  # with its own duration
 ```
+
+A role's `duration` replaces `[idp] duration` for that role. When STS rejects a duration as longer than the role allows, saml2sts says so and signs in for 1 hour instead.
 
 The native messaging host, which the browser starts, reads this file too, so keep it at this path rather than pointing `SAML2STS_CONFIG` elsewhere.
 

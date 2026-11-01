@@ -69,6 +69,9 @@ func Credentials(ctx context.Context, cfg config.Config, roleARN string, opts Op
 	if r.Credentials == nil {
 		return federation.Credentials{}, "", errors.New("the sign-in returned no credentials")
 	}
+	if r.Notice != "" {
+		opts.logf("saml2sts: %s\n", r.Notice)
+	}
 	if err := store.WriteCache(r.RoleARN, *r.Credentials); err != nil {
 		opts.logf("saml2sts: credentials not cached: %v\n", err)
 	}

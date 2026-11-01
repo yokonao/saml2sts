@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestCheckEndpoint(t *testing.T) {
@@ -72,11 +73,38 @@ prod-admin = "`+admin+`"
 	}
 }
 
+func TestRoleDuration(t *testing.T) {
+	const dev, prod = "arn:aws:iam::111111111111:role/dev", "arn:aws:iam::111111111111:role/prod"
+	c, err := load(t, `
+[idp]
+url = "https://idp.example.com/sso"
+duration = "2h"
+
+[roles]
+dev = { arn = "`+dev+`", duration = "12h" }
+prod = "`+prod+`"
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := c.ResolveRole("dev"); got != dev {
+		t.Errorf("ResolveRole(dev) = %q", got)
+	}
+	for arn, want := range map[string]time.Duration{dev: 12 * time.Hour, prod: 2 * time.Hour, "arn:aws:iam::1:role/other": 2 * time.Hour} {
+		if got := c.Duration(arn); got != want {
+			t.Errorf("Duration(%s) = %s, want %s", arn, got, want)
+		}
+	}
+}
+
 func TestLoadRejects(t *testing.T) {
 	for name, body := range map[string]string{
 		"no url":         "[idp]\nregion = \"us-east-1\"",
 		"remote http":    "[idp]\nurl = \"https://idp\"\nsts_endpoint = \"http://sts.example.com\"",
 		"bad role alias": "[idp]\nurl = \"https://idp\"\n[roles]\nx = \"admin\"",
+		"role table key": "[idp]\nurl = \"https://idp\"\n[roles]\nx = { arn = \"arn:aws:iam::111111111111:role/x\", ttl = \"1h\" }",
+		"role duration":  "[idp]\nurl = \"https://idp\"\n[roles]\nx = { arn = \"arn:aws:iam::111111111111:role/x\", duration = \"soon\" }",
+		"two durations":  "[idp]\nurl = \"https://idp\"\n[roles]\nx = { arn = \"arn:aws:iam::111111111111:role/x\", duration = \"1h\" }\ny = { arn = \"arn:aws:iam::111111111111:role/x\", duration = \"2h\" }",
 	} {
 		if _, err := load(t, body); err == nil {
 			t.Errorf("%s: Load succeeded", name)

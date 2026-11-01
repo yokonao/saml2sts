@@ -14,7 +14,7 @@ func TestChooseRole(t *testing.T) {
 		{RoleARN: "arn:aws:iam::111111111111:role/admin"},
 		{RoleARN: "arn:aws:iam::222222222222:role/readonly"},
 	}
-	cfg := config.Config{Roles: map[string]string{"prod-admin": roles[0].RoleARN}}
+	cfg := config.Config{Roles: map[string]config.Role{"prod-admin": {ARN: roles[0].RoleARN}}}
 
 	var out strings.Builder
 	got, err := chooseRole(strings.NewReader("2\n"), &out, cfg, roles)

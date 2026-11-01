@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -40,8 +41,9 @@ func useTestStore(t *testing.T) {
 }
 
 type stsCalls struct {
-	mu    sync.Mutex
-	roles []string
+	mu        sync.Mutex
+	roles     []string
+	durations []string
 }
 
 func (c *stsCalls) get() []string {
@@ -50,17 +52,36 @@ func (c *stsCalls) get() []string {
 	return slices.Clone(c.roles)
 }
 
+func (c *stsCalls) getDurations() []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return slices.Clone(c.durations)
+}
+
 // fakeSTS answers AssumeRoleWithSAML, with an error when fail is set, and
 // records the role each call asked for.
 func fakeSTS(t *testing.T, fail bool) *stsCalls {
+	t.Helper()
+	return fakeSTSWith(t, fail, 0, "")
+}
+
+// fakeSTSWith also rejects durations above maxSeconds, when not zero, and
+// appends roles to the [roles] of the config.
+func fakeSTSWith(t *testing.T, fail bool, maxSeconds int, roles string) *stsCalls {
 	t.Helper()
 	calls := &stsCalls{}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = r.ParseForm()
 		calls.mu.Lock()
 		calls.roles = append(calls.roles, r.Form.Get("RoleArn"))
+		calls.durations = append(calls.durations, r.Form.Get("DurationSeconds"))
 		calls.mu.Unlock()
 		w.Header().Set("Content-Type", "text/xml")
+		if d, _ := strconv.Atoi(r.Form.Get("DurationSeconds")); maxSeconds > 0 && d > maxSeconds {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = fmt.Fprint(w, `<ErrorResponse><Error><Type>Sender</Type><Code>ValidationError</Code><Message>The requested DurationSeconds exceeds the MaxSessionDuration set for this role.</Message></Error></ErrorResponse>`)
+			return
+		}
 		if fail {
 			w.WriteHeader(http.StatusBadRequest)
 			_, _ = fmt.Fprint(w, `<ErrorResponse><Error><Type>Sender</Type><Code>InvalidIdentityToken</Code><Message>bad assertion</Message></Error></ErrorResponse>`)
@@ -72,7 +93,7 @@ func fakeSTS(t *testing.T, fail bool) *stsCalls {
 	}))
 	t.Cleanup(srv.Close)
 	cfg := filepath.Join(t.TempDir(), "config.toml")
-	body := fmt.Sprintf("[idp]\nurl = \"https://idp.example.com/sso\"\nsts_endpoint = %q\n\n[roles]\nprod-admin = %q\n", srv.URL, adminARN)
+	body := fmt.Sprintf("[idp]\nurl = \"https://idp.example.com/sso\"\nsts_endpoint = %q\n\n[roles]\nprod-admin = %q\n%s", srv.URL, adminARN, roles)
 	if err := os.WriteFile(cfg, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -165,6 +186,22 @@ func TestNativeHostExchange(t *testing.T) {
 	}
 	if roles, _ := store.ReadRoles(); len(roles) != 2 {
 		t.Errorf("saved roles = %v", roles)
+	}
+}
+
+func TestNativeHostRoleDuration(t *testing.T) {
+	useTestStore(t)
+	calls := fakeSTSWith(t, false, 3600, `readonly = { arn = "`+readonlyARN+`", duration = "12h" }`+"\n")
+	writePending(t, store.Pending{RoleARN: readonlyARN})
+	r := host(t, hostRequest{SAMLResponse: samlResponse(adminARN, readonlyARN), Nonce: "NONCE"})
+	if len(r) != 1 || r[0].Status != "ok" {
+		t.Fatalf("replies = %s", statuses(r))
+	}
+	if got := calls.getDurations(); !slices.Equal(got, []string{"43200", "3600"}) {
+		t.Errorf("STS durations = %v, want 12h then the 1h retry", got)
+	}
+	if res, _ := store.ReadResult(); res == nil || res.Credentials == nil || !strings.Contains(res.Notice, "1h0m0s") {
+		t.Errorf("result = %+v", res)
 	}
 }
 

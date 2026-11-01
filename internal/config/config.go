@@ -20,8 +20,45 @@ import (
 // Config is the whole file.
 type Config struct {
 	IDP IDP `toml:"idp"`
-	// Roles maps short names to role ARNs.
-	Roles map[string]string `toml:"roles"`
+	// Roles maps short names to roles.
+	Roles map[string]Role `toml:"roles"`
+}
+
+// Role is a role ARN, written as a string or as a table that also sets the
+// session duration of the role.
+type Role struct {
+	ARN string
+	// Duration overrides [idp] duration for this role.
+	Duration time.Duration
+}
+
+func (r *Role) UnmarshalTOML(v any) error {
+	switch v := v.(type) {
+	case string:
+		r.ARN = v
+		return nil
+	case map[string]any:
+		for k, val := range v {
+			s, ok := val.(string)
+			if !ok {
+				return fmt.Errorf("%s must be a string", k)
+			}
+			switch k {
+			case "arn":
+				r.ARN = s
+			case "duration":
+				d, err := time.ParseDuration(s)
+				if err != nil {
+					return err
+				}
+				r.Duration = d
+			default:
+				return fmt.Errorf("unknown key %q", k)
+			}
+		}
+		return nil
+	}
+	return fmt.Errorf("must be a role ARN or a table with arn and duration, not %T", v)
 }
 
 // IDP is where to sign in and how to reach STS.
@@ -85,18 +122,26 @@ func Load() (Config, error) {
 	if err := checkEndpoint(c.IDP.STSEndpoint); err != nil {
 		return Config{}, err
 	}
-	for name, arn := range c.Roles {
-		if !roleARN.MatchString(arn) {
-			return Config{}, fmt.Errorf("[roles] %s is not a role ARN: %q", name, arn)
+	durations := map[string]time.Duration{}
+	for name, r := range c.Roles {
+		if !roleARN.MatchString(r.ARN) {
+			return Config{}, fmt.Errorf("[roles] %s is not a role ARN: %q", name, r.ARN)
 		}
+		if r.Duration < 0 {
+			return Config{}, fmt.Errorf("[roles] %s has a negative duration", name)
+		}
+		if d, ok := durations[r.ARN]; ok && d != r.Duration {
+			return Config{}, fmt.Errorf("[roles] gives %s different durations", r.ARN)
+		}
+		durations[r.ARN] = r.Duration
 	}
 	return c, nil
 }
 
 // ResolveRole turns a short name from [roles], or a role ARN, into a role ARN.
 func (c Config) ResolveRole(role string) (string, error) {
-	if arn, ok := c.Roles[role]; ok {
-		return arn, nil
+	if r, ok := c.Roles[role]; ok {
+		return r.ARN, nil
 	}
 	if roleARN.MatchString(role) {
 		return role, nil
@@ -109,12 +154,23 @@ func (c Config) ResolveRole(role string) (string, error) {
 
 // Alias returns the name [roles] gives arn, if any.
 func (c Config) Alias(arn string) (string, bool) {
-	for name, a := range c.Roles {
-		if a == arn {
+	for name, r := range c.Roles {
+		if r.ARN == arn {
 			return name, true
 		}
 	}
 	return "", false
+}
+
+// Duration returns the session duration to ask STS for arn: its own from
+// [roles], else [idp] duration. Zero leaves it to STS.
+func (c Config) Duration(arn string) time.Duration {
+	for _, r := range c.Roles {
+		if r.ARN == arn && r.Duration > 0 {
+			return r.Duration
+		}
+	}
+	return c.IDP.Duration.Duration
 }
 
 // RoleName returns the short name of arn, or the part after "role/".

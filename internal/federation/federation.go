@@ -3,10 +3,13 @@ package federation
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/aws/smithy-go"
 
 	"github.com/yokonao/saml2sts/internal/saml"
 )
@@ -25,6 +28,17 @@ type Credentials struct {
 func (c Credentials) Fresh(margin time.Duration) bool {
 	margin = min(margin, c.Expiration.Sub(c.Issued)/2)
 	return c.AccessKeyID != "" && time.Until(c.Expiration) > margin
+}
+
+// DefaultDuration is the session length every role allows.
+const DefaultDuration = time.Hour
+
+// DurationTooLong reports whether STS rejected the call because the duration
+// asked for exceeds the role's maximum session duration.
+func DurationTooLong(err error) bool {
+	var ae smithy.APIError
+	return errors.As(err, &ae) && ae.ErrorCode() == "ValidationError" &&
+		strings.Contains(ae.ErrorMessage(), "MaxSessionDuration")
 }
 
 // AssumeRole calls AssumeRoleWithSAML. A zero duration leaves the session
