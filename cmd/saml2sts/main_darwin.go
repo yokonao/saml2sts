@@ -20,7 +20,7 @@ func runBrowserHost(args []string) (bool, error) {
 }
 
 func subcommands() []*cobra.Command {
-	return []*cobra.Command{newLoginCmd(), newCredsCmd(), newExecCmd(), newRolesCmd(), newProfilesCmd(), newLogoutCmd(), newInstallCmd(), newDoctorCmd()}
+	return []*cobra.Command{newLoginCmd(), newCredsCmd(), newExecCmd(), newRolesCmd(), newProfilesCmd(), newLogoutCmd(), newInstallCmd(), newDoctorCmd(), newAgentCmd()}
 }
 
 type roleFlags = loginFlags

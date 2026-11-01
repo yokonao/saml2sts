@@ -63,3 +63,30 @@ func TestSystemConfigMustBeRootOwned(t *testing.T) {
 		t.Errorf("Load accepted %s owned by the user", sys)
 	}
 }
+
+func TestSystemRemote(t *testing.T) {
+	const dev, admin = "arn:aws:iam::111111111111:role/dev", "arn:aws:iam::111111111111:role/admin"
+	useSystem(t, `
+[remote]
+accounts = ["111111111111"]
+confirm = ["`+admin+`"]
+`)
+	c, err := load(t, `
+[idp]
+url = "https://idp.example.com/sso"
+
+[remote]
+accounts = ["222222222222"]
+roles = ["`+dev+`"]
+confirm = ["`+dev+`"]
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Remote.Accounts) != 1 || c.Remote.Accounts[0] != "111111111111" || len(c.Remote.Roles) != 1 {
+		t.Errorf("Remote = %+v", c.Remote)
+	}
+	if !c.Remote.NeedsConfirm(admin) || !c.Remote.NeedsConfirm(dev) {
+		t.Errorf("Confirm = %v", c.Remote.Confirm)
+	}
+}

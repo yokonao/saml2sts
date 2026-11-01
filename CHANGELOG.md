@@ -4,6 +4,7 @@
 
 ### Added
 
+- `saml2sts agent` gives work machines credentials over a Unix domain socket that you forward, such as with `ssh -R`. Run as a resident agent, it shares only the accounts and roles `[remote]` names; `saml2sts agent exec -- <command>` runs a temporary agent that shares every role until the command exits. Every request shows a notification on the sign-in machine, and roles in `[remote] confirm` need approval in a dialog. The system config can fix `[remote]`. See `docs/agent.md`.
 - Releases include Linux binaries (amd64, arm64) for work machines. They have only `creds`, `exec` and `roles`, which ask the agent on the sign-in machine over the socket in `$SAML2STS_AGENT_SOCK`, and say how to forward it when it is unreachable. On a Mac, these commands also ask the agent when the variable is set. See `docs/install.md`.
 - An organization can build its own copy: `dev/browser/package-extension.mjs` packages the extension with its own host name and key for the Chrome Web Store, a self-hosted CRX and Firefox, and the release config builds in the host name of `SAML2STS_HOST_NAME` and signs and notarizes the binaries when the signing secrets are set. See `docs/enterprise.md`.
 - `doctor` checks the setup without signing in: the config files and where the IdP settings come from, the host manifests and the binaries they name, the extension in each browser profile, the code signature, and whether the Keychain items can be read without a prompt. It says what to fix and exits non-zero when a check fails.
