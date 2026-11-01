@@ -20,8 +20,10 @@ func TestExecEnv(t *testing.T) {
 		"AWS_PROFILE=parent",
 		"AWS_REGION=us-east-1",
 	}
-	c := federation.Credentials{AccessKeyID: "id", SecretAccessKey: "secret", SessionToken: "token",
-		Expiration: time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)}
+	c := federation.Credentials{
+		AccessKeyID: "id", SecretAccessKey: "secret", SessionToken: "token",
+		Expiration: time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC),
+	}
 	got := map[string][]string{}
 	for _, kv := range execEnv(parent, c, "arn:aws:iam::111111111111:role/admin") {
 		k, v, _ := strings.Cut(kv, "=")
