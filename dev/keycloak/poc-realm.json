@@ -1,0 +1,67 @@
+{
+  "realm": "poc",
+  "enabled": true,
+  "users": [
+    {
+      "username": "alice",
+      "enabled": true,
+      "email": "alice@example.com",
+      "emailVerified": true,
+      "firstName": "Alice",
+      "lastName": "Example",
+      "credentials": [{ "type": "password", "value": "alice", "temporary": false }]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "urn:amazon:webservices",
+      "name": "AWS",
+      "protocol": "saml",
+      "enabled": true,
+      "frontchannelLogout": true,
+      "redirectUris": ["https://signin.aws.amazon.com/saml"],
+      "attributes": {
+        "saml_idp_initiated_sso_url_name": "aws",
+        "saml_assertion_consumer_url_post": "https://signin.aws.amazon.com/saml",
+        "saml.client.signature": "false",
+        "saml.server.signature": "true",
+        "saml.assertion.signature": "true",
+        "saml.authnstatement": "true",
+        "saml_force_name_id_format": "true",
+        "saml_name_id_format": "persistent"
+      },
+      "protocolMappers": [
+        {
+          "name": "role-admin",
+          "protocol": "saml",
+          "protocolMapper": "saml-hardcode-attribute-mapper",
+          "config": {
+            "attribute.name": "https://aws.amazon.com/SAML/Attributes/Role",
+            "attribute.nameformat": "URI Reference",
+            "attribute.value": "arn:aws:iam::000000000000:role/poc-admin,arn:aws:iam::000000000000:saml-provider/keycloak"
+          }
+        },
+        {
+          "name": "role-readonly",
+          "protocol": "saml",
+          "protocolMapper": "saml-hardcode-attribute-mapper",
+          "config": {
+            "attribute.name": "https://aws.amazon.com/SAML/Attributes/Role",
+            "attribute.nameformat": "URI Reference",
+            "attribute.value": "arn:aws:iam::000000000000:role/poc-readonly,arn:aws:iam::000000000000:saml-provider/keycloak"
+          }
+        },
+        {
+          "name": "role-session-name",
+          "protocol": "saml",
+          "protocolMapper": "saml-user-property-mapper",
+          "config": {
+            "user.attribute": "username",
+            "attribute.name": "https://aws.amazon.com/SAML/Attributes/RoleSessionName",
+            "attribute.nameformat": "URI Reference"
+          }
+        }
+      ]
+    }
+  ]
+}

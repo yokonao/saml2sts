@@ -1,0 +1,81 @@
+<!doctype html>
+<!-- Source of docs/images/agent-{light,dark}.png. Regenerate with
+     `cd dev/browser && npm run diagram`. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>saml2sts agent</title>
+<link rel="stylesheet" href="diagram.css">
+<style>#diagram { width: 960px; }</style>
+</head>
+<body>
+<div id="diagram">
+<svg width="960" height="350" viewBox="0 0 960 350" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path class="head" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+    <marker id="hh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="head-hot" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+
+  <!-- zones -->
+  <rect class="zone" x="10" y="10" width="300" height="330" rx="14"/>
+  <text class="zone-label" x="28" y="36">REMOTE MACHINE</text>
+  <rect class="zone" x="440" y="10" width="510" height="330" rx="14"/>
+  <text class="zone-label" x="458" y="36">YOUR MACHINE</text>
+
+  <!-- remote -->
+  <rect class="node" x="30" y="56" width="260" height="72" rx="10"/>
+  <text class="title" x="160" y="90" text-anchor="middle">aws · terraform</text>
+  <text class="sub mono" x="160" y="112" text-anchor="middle">credential_process</text>
+
+  <rect class="node" x="30" y="176" width="260" height="90" rx="10"/>
+  <text class="title" x="160" y="214" text-anchor="middle">saml2sts creds</text>
+  <text class="sub" x="160" y="238" text-anchor="middle">no browser · no storage</text>
+
+  <path class="arrow" d="M160 128 V172" marker-end="url(#h)"/>
+  <g class="badge"><circle cx="186" cy="150" r="13"/><text x="186" y="155" text-anchor="middle">1</text></g>
+
+  <!-- forwarded socket -->
+  <rect class="pipe" x="282" y="197" width="192" height="48" rx="24"/>
+  <path class="arrow hot" d="M296 211 H462" marker-end="url(#hh)"/>
+  <path class="arrow hot" d="M460 231 H294" marker-end="url(#hh)"/>
+  <g class="badge"><circle cx="375" cy="221" r="13"/><text x="375" y="226" text-anchor="middle">2</text></g>
+  <text class="label" x="375" y="170" text-anchor="middle">forwarded</text>
+  <text class="sub mono" x="375" y="188" text-anchor="middle">e.g. ssh -R</text>
+  <text class="label" x="375" y="268" text-anchor="middle">role ⇄</text>
+  <text class="label" x="375" y="288" text-anchor="middle">credentials</text>
+
+  <!-- your machine -->
+  <rect class="ext" x="466" y="176" width="190" height="90" rx="10"/>
+  <text class="ext-title" x="561" y="214" text-anchor="middle">saml2sts agent</text>
+  <text class="sub mono" x="561" y="238" text-anchor="middle">[remote] accounts</text>
+
+  <rect class="node" x="690" y="56" width="234" height="210" rx="10"/>
+  <text class="title" x="807" y="90" text-anchor="middle">login flow</text>
+  <rect class="chip" x="710" y="110" width="194" height="32" rx="8"/>
+  <text class="chip-text" x="807" y="131" text-anchor="middle">browser + extension</text>
+  <rect class="chip" x="710" y="152" width="194" height="32" rx="8"/>
+  <text class="chip-text" x="807" y="173" text-anchor="middle">native host → STS</text>
+  <rect class="store" x="710" y="194" width="194" height="32" rx="8"/>
+  <text class="chip-text" x="807" y="215" text-anchor="middle">secure storage</text>
+  <text class="sub" x="807" y="252" text-anchor="middle">only when the cache is stale</text>
+
+  <path class="arrow" d="M656 206 H696" marker-end="url(#h)"/>
+  <path class="arrow" d="M700 236 H660" marker-end="url(#h)"/>
+  <g class="badge"><circle cx="678" cy="221" r="13"/><text x="678" y="226" text-anchor="middle">3</text></g>
+
+  <!-- trust notes -->
+  <text class="note" x="28" y="306">Anything that can reach the socket</text>
+  <text class="note" x="28" y="324">can ask for roles in the accounts it shares.</text>
+  <text class="note" x="466" y="306">Stays here: SAMLResponse, IdP session,</text>
+  <text class="note" x="466" y="324">config and the credential cache.</text>
+</svg>
+</div>
+<script>
+  if (new URLSearchParams(location.search).get("theme") === "dark") document.body.classList.add("dark");
+</script>
+</body>
+</html>

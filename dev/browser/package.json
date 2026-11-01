@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "e2e": "node e2e.mjs",
+    "diagram": "node diagram.mjs",
+    "firefox-extension": "node firefox-extension.mjs"
+  },
+  "devDependencies": {
+    "@puppeteer/browsers": "3.2.5",
+    "puppeteer-core": "25.14.0"
+  }
+}

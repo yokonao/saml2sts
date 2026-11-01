@@ -1,0 +1,41 @@
+/* Shared by docs/*.html diagrams. */
+:root {
+  --bg: #ffffff; --fg: #1f2328; --muted: #59636e; --line: #6e7781;
+  --zone: #f6f8fa; --zone-line: #d1d9e0; --node: #ffffff; --node-line: #afb8c1;
+  --accent: #0969da; --accent-bg: #ddf4ff; --accent-fg: #ffffff;
+  --store: #fff8c5; --store-line: #d4a72c;
+}
+body.dark {
+  --bg: #0d1117; --fg: #f0f6fc; --muted: #9198a1; --line: #9198a1;
+  --zone: #151b23; --zone-line: #3d444d; --node: #0d1117; --node-line: #656c76;
+  --accent: #4493f8; --accent-bg: #0c2d6b; --accent-fg: #0d1117;
+  --store: #2e2a14; --store-line: #9e6a03;
+}
+html, body { margin: 0; background: var(--bg); }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+svg { display: block; }
+.zone { fill: var(--zone); stroke: var(--zone-line); stroke-width: 1.5; }
+.zone-label { fill: var(--muted); font-size: 13px; font-weight: 700; letter-spacing: .06em; }
+.node { fill: var(--node); stroke: var(--node-line); stroke-width: 1.5; }
+.title { fill: var(--fg); font-size: 17px; font-weight: 700; }
+.sub { fill: var(--muted); font-size: 13px; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.ext { fill: var(--accent-bg); stroke: var(--accent); stroke-width: 2.5; }
+.ext-title { fill: var(--accent); font-size: 17px; font-weight: 700; }
+.arrow.back { stroke-width: 1.5; }
+.arrow.tap-line { stroke-dasharray: 3 3; }
+.eye circle { fill: var(--bg); stroke: var(--accent); stroke-width: 2.5; }
+.eye path { fill: none; stroke: var(--accent); stroke-width: 2; }
+.eye .pupil { fill: var(--accent); stroke: none; }
+.store { fill: var(--store); stroke: var(--store-line); stroke-width: 1.5; }
+.arrow { stroke: var(--line); stroke-width: 2; fill: none; }
+.arrow.hot { stroke: var(--accent); stroke-width: 2.5; }
+.head { fill: var(--line); }
+.head-hot { fill: var(--accent); }
+.badge circle { fill: var(--accent); }
+.badge text { fill: var(--accent-fg); font-size: 13px; font-weight: 700; }
+.label { fill: var(--fg); font-size: 14px; font-weight: 600; }
+.chip { fill: var(--zone); stroke: var(--node-line); stroke-width: 1; }
+.chip-text { fill: var(--fg); font-size: 13px; }
+.pipe { fill: var(--accent-bg); stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 6 4; }
+.note { fill: var(--muted); font-size: 13px; }

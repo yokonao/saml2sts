@@ -1,0 +1,18 @@
+name: saml2sts-dev
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import:ro
+
+  floci:
+    image: floci/floci:2.4.0
+    ports:
+      - "127.0.0.1:4566:4566"

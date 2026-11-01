@@ -1,0 +1,2 @@
+# The extension manifest key is a public key that pins the dev extension ID.
+extension/manifest.json:generic-api-key:6

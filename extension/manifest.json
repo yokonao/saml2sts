@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "saml2sts",
+  "description": "Hands AWS SAML sign-ins to the saml2sts CLI.",
+  "version": "0.1.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxLvsuDMlz74FRPhHQF/swa9xnxva4oLO8x9rCRUgA0c9UUUJcrJcVvNoXCrZ2XKj8Payjyk2dH1CCKEVS39l/ywYZgpwDwKY/CECvardZY0IpCcVZATvjXKRNXVfZ3msurnFfD3VBU5x2HKQd0Rq6g+U+y4Gs2c5rc2W49J6OnzirvQch9qAoJY9VWwcePUvE6OYl/MOgwldCbdy1wfre6ITxWMemOdqP36c/g9THhhtlWdRDFe9wy71RIfodgA730bPNzre+szZ5SBI2uMf3jo5Ze9oBGjjLzYf55Fbvp9BRTAOM31950XLCewagJ3iO5TZRfCwICXfhPl4mw78eQIDAQAB",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {},
+  "permissions": [
+    "webRequest",
+    "nativeMessaging"
+  ],
+  "host_permissions": [
+    "https://signin.aws.amazon.com/saml",
+    "https://*.signin.aws.amazon.com/saml"
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "saml2sts@yokonao.github.io",
+      "strict_min_version": "128.0",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
+    }
+  }
+}

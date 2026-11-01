@@ -1,0 +1,97 @@
+<!doctype html>
+<!-- Source of docs/images/flow-{light,dark}.png. Regenerate with
+     `cd dev/browser && npm run diagram`. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>saml2sts flow</title>
+<link rel="stylesheet" href="diagram.css">
+<style>#diagram { width: 960px; }</style>
+</head>
+<body>
+<div id="diagram">
+<svg width="960" height="440" viewBox="0 0 960 440" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path class="head" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+    <marker id="hh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="head-hot" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+
+  <!-- zones -->
+  <rect class="zone" x="10" y="10" width="940" height="180" rx="14"/>
+  <text class="zone-label" x="28" y="36">YOUR BROWSER</text>
+  <rect class="zone" x="10" y="240" width="620" height="190" rx="14"/>
+  <text class="zone-label" x="28" y="266">YOUR MACHINE</text>
+  <rect class="zone" x="690" y="240" width="260" height="190" rx="14"/>
+  <text class="zone-label" x="708" y="266">AWS</text>
+
+  <!-- browser row: the round trip to AWS is untouched; the extension only
+       reads the outgoing POST -->
+  <rect class="node" x="40" y="46" width="160" height="88" rx="10"/>
+  <text class="title" x="120" y="86" text-anchor="middle">Your IdP</text>
+  <text class="sub" x="120" y="110" text-anchor="middle">passkey · MFA</text>
+
+  <rect class="node" x="740" y="46" width="180" height="88" rx="10"/>
+  <text class="title" x="830" y="86" text-anchor="middle">AWS sign-in</text>
+  <text class="sub mono" x="830" y="110" text-anchor="middle">/saml</text>
+
+  <path class="arrow back" d="M740 64 H204" marker-end="url(#h)"/>
+  <text class="sub" x="540" y="56" text-anchor="middle">console page, then replaced by a done page</text>
+  <path class="arrow" d="M200 104 H736" marker-end="url(#h)"/>
+  <text class="label" x="290" y="134">sign-in POST</text>
+  <text class="sub mono" x="290" y="154">SAMLResponse=…</text>
+
+  <path class="arrow hot tap-line" d="M500 116 V126"/>
+  <g class="eye" transform="translate(500 104)">
+    <circle r="14"/>
+    <path d="M-9 0 Q0 -8 9 0 Q0 8 -9 0 Z"/>
+    <circle class="pupil" r="3"/>
+  </g>
+  <rect class="ext" x="420" y="126" width="160" height="48" rx="24"/>
+  <text class="ext-title" x="500" y="156" text-anchor="middle">Extension</text>
+
+  <!-- mac row -->
+  <rect class="node" x="40" y="290" width="160" height="100" rx="10"/>
+  <text class="title" x="120" y="336" text-anchor="middle">saml2sts</text>
+  <text class="sub mono" x="120" y="359" text-anchor="middle">login · exec</text>
+
+  <rect class="store" x="232" y="300" width="156" height="80" rx="10"/>
+  <text class="title" x="310" y="336" text-anchor="middle">Secure storage</text>
+  <text class="sub" x="310" y="358" text-anchor="middle">e.g. Keychain</text>
+
+  <rect class="node" x="420" y="290" width="160" height="100" rx="10"/>
+  <text class="title" x="500" y="336" text-anchor="middle">saml2sts</text>
+  <text class="sub" x="500" y="359" text-anchor="middle">native host</text>
+
+  <!-- aws row -->
+  <rect class="node" x="740" y="290" width="180" height="100" rx="10"/>
+  <text class="title" x="830" y="346" text-anchor="middle">STS</text>
+
+  <!-- flow -->
+  <path class="arrow" d="M120 290 V138" marker-end="url(#h)"/>
+  <path class="arrow hot" d="M500 174 V286" marker-end="url(#hh)"/>
+  <path class="arrow" d="M580 326 H736" marker-end="url(#h)"/>
+  <path class="arrow" d="M740 354 H584" marker-end="url(#h)"/>
+  <path class="arrow" d="M420 340 H392" marker-end="url(#h)"/>
+  <path class="arrow" d="M232 340 H204" marker-end="url(#h)"/>
+
+  <g class="badge"><circle cx="120" cy="215" r="13"/><text x="120" y="220" text-anchor="middle">1</text></g>
+  <text class="label" x="142" y="220">open</text>
+  <g class="badge"><circle cx="270" cy="104" r="13"/><text x="270" y="109" text-anchor="middle">2</text></g>
+  <g class="badge"><circle cx="500" cy="215" r="13"/><text x="500" y="220" text-anchor="middle">3</text></g>
+  <text class="label" x="522" y="212">copy</text>
+  <text class="sub mono" x="522" y="231">SAMLResponse</text>
+  <g class="badge"><circle cx="635" cy="340" r="13"/><text x="635" y="345" text-anchor="middle">4</text></g>
+  <text class="label" x="635" y="312" text-anchor="middle">exchange</text>
+  <g class="badge"><circle cx="310" cy="405" r="13"/><text x="310" y="410" text-anchor="middle">5</text></g>
+  <text class="label" x="332" y="410">credentials</text>
+</svg>
+</div>
+<script>
+  if (new URLSearchParams(location.search).get("theme") === "dark") document.body.classList.add("dark");
+</script>
+</body>
+</html>
