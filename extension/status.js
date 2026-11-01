@@ -1,4 +1,5 @@
-// Renders ?state=choose|done|listed|error, with role= or error= alongside.
+// Renders ?state=choose|done|listed|error, with role= or, for an error, the
+// id= of its message in session storage.
 const params = new URLSearchParams(location.search);
 const state = params.get("state") ?? "done";
 const STATES = {
@@ -23,7 +24,13 @@ const s = STATES[state] ?? STATES.done;
 document.body.dataset.state = state;
 document.querySelector(".mark").textContent = s.mark;
 document.querySelector("h1").textContent = s.title;
-document.querySelector("p").textContent = state === "error" ? (params.get("error") ?? "") : s.text;
+document.querySelector("p").textContent = s.text;
+if (state === "error") {
+  const key = `error:${params.get("id")}`;
+  chrome.storage.session.get(key).then((items) => {
+    document.querySelector("p").textContent = items[key] ?? "";
+  });
+}
 
 const role = params.get("role");
 if (state === "done" && role) {

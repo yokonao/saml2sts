@@ -34,6 +34,8 @@ var (
 	chromiumID = regexp.MustCompile(`^[a-p]{32}$`)
 	// Firefox add-on IDs are email-like or a braced UUID.
 	firefoxID = regexp.MustCompile(`^([A-Za-z0-9._+-]*@[A-Za-z0-9._-]+|\{[0-9A-Fa-f-]{36}\})$`)
+	// hostName is the rule browsers apply to native messaging host names.
+	hostName = regexp.MustCompile(`^[a-z0-9_]+(\.[a-z0-9_]+)*$`)
 )
 
 type hostManifest struct {
@@ -71,14 +73,20 @@ func newInstallCmd() *cobra.Command {
 					return fmt.Errorf("%q is neither a Chromium nor a Firefox extension ID", id)
 				}
 			}
+			if !hostName.MatchString(name) {
+				return fmt.Errorf("--name %q must be dot-separated parts of a-z, 0-9 and _", name)
+			}
 			if path == "" {
+				// Not resolved through symlinks, which would pin the
+				// version-specific path a package manager links to.
 				exe, err := os.Executable()
 				if err != nil {
 					return err
 				}
-				if path, err = filepath.EvalSymlinks(exe); err != nil {
-					return err
-				}
+				path = exe
+			}
+			if !filepath.IsAbs(path) {
+				return fmt.Errorf("--path %q must be absolute, as browsers require", path)
 			}
 			base := hostManifest{Name: name, Description: "saml2sts", Path: path, Type: "stdio"}
 

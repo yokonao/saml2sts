@@ -66,7 +66,7 @@ chrome.webRequest.onBeforeRequest.addListener(
         default:
           console.error("saml2sts:", reply.error);
           showBadge("error");
-          showStatus(details.tabId, { state: "error", error: reply.error ?? "" });
+          showError(details.tabId, reply.error ?? "");
       }
     });
     port.onDisconnect.addListener(() => {
@@ -82,6 +82,10 @@ chrome.webRequest.onBeforeRequest.addListener(
     urls: [
       "https://signin.aws.amazon.com/saml",
       "https://*.signin.aws.amazon.com/saml",
+      "https://signin.amazonaws-us-gov.com/saml",
+      "https://*.signin.amazonaws-us-gov.com/saml",
+      "https://signin.amazonaws.cn/saml",
+      "https://*.signin.amazonaws.cn/saml",
     ],
     types: ["main_frame"],
   },
@@ -93,6 +97,13 @@ function showStatus(tabId, params) {
   const url = new URL(chrome.runtime.getURL("status.html"));
   for (const [k, v] of Object.entries(params)) if (v) url.searchParams.set(k, v);
   chrome.tabs.update(tabId, { url: url.href });
+}
+
+// showError keeps the message out of the URL, and so out of the history.
+async function showError(tabId, error) {
+  const id = crypto.randomUUID();
+  await chrome.storage.session.set({ [`error:${id}`]: error });
+  showStatus(tabId, { state: "error", id });
 }
 
 function showBadge(kind) {

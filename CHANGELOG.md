@@ -11,6 +11,10 @@
 
 - `exec` replaces AWS credential variables the parent already had, instead of passing both, so nested `exec` or a shell script no longer runs with the parent's credentials.
 - Two SAML POSTs for one login, from a reload or two tabs, no longer both call STS; only one is exchanged.
+- The SAML response is read only from the attribute statements of its single assertion, by namespace, and an encrypted assertion now says so instead of "no AWS role".
+- `install` requires an absolute `--path` and a valid `--name`, and no longer resolves the binary through symlinks, which pinned a version-specific path.
+- The extension keeps error messages out of the status page URL, and so out of the browser history.
+- The extension also covers the GovCloud and China sign-in hosts.
 
 ## v0.0.1 - 2026-11-01
 

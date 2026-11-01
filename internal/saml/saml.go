@@ -7,7 +7,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"io"
 	"regexp"
 	"strings"
 )
@@ -48,7 +47,7 @@ func Select(roles []Role, roleARN string) (Role, error) {
 		if len(roles) == 1 {
 			return roles[0], nil
 		}
-		return Role{}, fmt.Errorf("SAML response has %d roles; set role_arn to choose one", len(roles))
+		return Role{}, fmt.Errorf("SAML response has %d roles; pass --role to choose one", len(roles))
 	}
 	for _, r := range roles {
 		if r.RoleARN == roleARN {
@@ -90,49 +89,41 @@ func role(arn, provider string) (Role, bool) {
 	return r, r.Valid()
 }
 
-func attributeValues(doc, name string) ([]string, error) {
-	d := xml.NewDecoder(strings.NewReader(doc))
-	var values []string
-	inAttr, inValue := false, false
-	var cur strings.Builder
-	for {
-		tok, err := d.Token()
-		if errors.Is(err, io.EOF) {
-			return values, nil
-		}
-		if err != nil {
-			return nil, fmt.Errorf("parse SAML response: %w", err)
-		}
-		switch t := tok.(type) {
-		case xml.StartElement:
-			switch {
-			case t.Name.Local == "Attribute":
-				inAttr = attr(t, "Name") == name
-			case inAttr && t.Name.Local == "AttributeValue":
-				inValue = true
-				cur.Reset()
-			}
-		case xml.CharData:
-			if inValue {
-				cur.Write(t)
-			}
-		case xml.EndElement:
-			switch {
-			case inValue && t.Name.Local == "AttributeValue":
-				values = append(values, cur.String())
-				inValue = false
-			case t.Name.Local == "Attribute":
-				inAttr = false
-			}
-		}
-	}
+type samlResponse struct {
+	XMLName    xml.Name    `xml:"urn:oasis:names:tc:SAML:2.0:protocol Response"`
+	Assertions []assertion `xml:"urn:oasis:names:tc:SAML:2.0:assertion Assertion"`
+	Encrypted  []struct{}  `xml:"urn:oasis:names:tc:SAML:2.0:assertion EncryptedAssertion"`
 }
 
-func attr(e xml.StartElement, name string) string {
-	for _, a := range e.Attr {
-		if a.Name.Local == name {
-			return a.Value
+type assertion struct {
+	Statements []struct {
+		Attributes []struct {
+			Name   string   `xml:"Name,attr"`
+			Values []string `xml:"urn:oasis:names:tc:SAML:2.0:assertion AttributeValue"`
+		} `xml:"urn:oasis:names:tc:SAML:2.0:assertion Attribute"`
+	} `xml:"urn:oasis:names:tc:SAML:2.0:assertion AttributeStatement"`
+}
+
+// attributeValues reads the attribute from the one assertion that AWS takes,
+// only where SAML puts it, so values elsewhere in the document are ignored.
+func attributeValues(doc, name string) ([]string, error) {
+	var r samlResponse
+	if err := xml.Unmarshal([]byte(doc), &r); err != nil {
+		return nil, fmt.Errorf("parse SAML response: %w", err)
+	}
+	if len(r.Encrypted) > 0 {
+		return nil, errors.New("SAML response has an encrypted assertion, which saml2sts cannot read; ask your IdP admin to turn off assertion encryption for AWS")
+	}
+	if len(r.Assertions) != 1 {
+		return nil, fmt.Errorf("SAML response has %d assertions, want 1", len(r.Assertions))
+	}
+	var values []string
+	for _, st := range r.Assertions[0].Statements {
+		for _, a := range st.Attributes {
+			if a.Name == name {
+				values = append(values, a.Values...)
+			}
 		}
 	}
-	return ""
+	return values, nil
 }

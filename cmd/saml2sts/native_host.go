@@ -33,11 +33,12 @@ type hostReply struct {
 }
 
 const (
-	stsTimeout = 30 * time.Second
-	// chooseTimeout bounds how long the host waits for the user to pick a role.
-	chooseTimeout = 2 * time.Minute
-	pollInterval  = 300 * time.Millisecond
+	stsTimeout   = 30 * time.Second
+	pollInterval = 300 * time.Millisecond
 )
+
+// chooseTimeout bounds how long the host waits for the user to pick a role.
+var chooseTimeout = 2 * time.Minute
 
 // runNativeHost answers one message from the extension, with a "choose" reply
 // first when the user has to pick a role. The SAML response never leaves this

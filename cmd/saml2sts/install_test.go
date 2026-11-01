@@ -51,3 +51,20 @@ func TestInstallNeedsIDForEachBrowser(t *testing.T) {
 		t.Fatal("expected an error for Firefox without a Firefox extension ID")
 	}
 }
+
+func TestInstallRejectsBadNameOrPath(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	for _, args := range [][]string{
+		{"--name", "../evil"},
+		{"--name", "Io.Example"},
+		{"--path", "bin/saml2sts"},
+	} {
+		cmd := newRootCmd()
+		cmd.SetOut(io.Discard)
+		cmd.SetErr(io.Discard)
+		cmd.SetArgs(append([]string{"install", "--extension-id", "ljanpcedhfnidohflcgdjflhhjebpikb", "--path", "/bin/saml2sts"}, args...))
+		if err := cmd.Execute(); err == nil {
+			t.Errorf("install %q succeeded", args)
+		}
+	}
+}

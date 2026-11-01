@@ -20,14 +20,19 @@ import (
 	"github.com/yokonao/saml2sts/internal/saml"
 )
 
-const service = "saml2sts"
+var service = "saml2sts"
 
-var (
-	pendingItem = keychain.Item{Service: service + ".pending", Account: "login"}
-	resultItem  = keychain.Item{Service: service + ".result", Account: "login"}
-	choiceItem  = keychain.Item{Service: service + ".choice", Account: "login"}
-	rolesItem   = keychain.Item{Service: service + ".roles", Account: "login"}
-)
+// UseService makes the store use other Keychain items, so tests leave a real
+// login alone. It returns a function that restores the default.
+func UseService(name string) (restore func()) {
+	old := service
+	service = name
+	return func() { service = old }
+}
+
+func loginItem(kind string) keychain.Item {
+	return keychain.Item{Service: service + "." + kind, Account: "login"}
+}
 
 func cacheItem(roleARN string) keychain.Item {
 	return keychain.Item{Service: service + ".credentials", Account: roleARN}
@@ -77,45 +82,45 @@ type Choice struct {
 
 // WritePending replaces the pending login and clears what an earlier one left.
 func WritePending(p Pending) error {
-	for _, item := range []keychain.Item{resultItem, choiceItem} {
+	for _, item := range []keychain.Item{loginItem("result"), loginItem("choice")} {
 		if err := keychain.Delete(item); err != nil {
 			return err
 		}
 	}
-	return write(pendingItem, p)
+	return write(loginItem("pending"), p)
 }
 
 // ReadPending returns nil when no login is pending.
-func ReadPending() (*Pending, error) { return read[Pending](pendingItem) }
+func ReadPending() (*Pending, error) { return read[Pending](loginItem("pending")) }
 
 // DeletePending ends the pending login.
-func DeletePending() error { return keychain.Delete(pendingItem) }
+func DeletePending() error { return keychain.Delete(loginItem("pending")) }
 
 // WriteResult answers the pending login.
-func WriteResult(r Result) error { return write(resultItem, r) }
+func WriteResult(r Result) error { return write(loginItem("result"), r) }
 
 // ReadResult returns nil while the host has not answered.
-func ReadResult() (*Result, error) { return read[Result](resultItem) }
+func ReadResult() (*Result, error) { return read[Result](loginItem("result")) }
 
 // DeleteResult consumes the answer.
-func DeleteResult() error { return keychain.Delete(resultItem) }
+func DeleteResult() error { return keychain.Delete(loginItem("result")) }
 
 // WriteChoice answers a Result listing roles.
-func WriteChoice(c Choice) error { return write(choiceItem, c) }
+func WriteChoice(c Choice) error { return write(loginItem("choice"), c) }
 
 // ReadChoice returns nil while the user has not chosen.
-func ReadChoice() (*Choice, error) { return read[Choice](choiceItem) }
+func ReadChoice() (*Choice, error) { return read[Choice](loginItem("choice")) }
 
 // DeleteChoice consumes the choice.
-func DeleteChoice() error { return keychain.Delete(choiceItem) }
+func DeleteChoice() error { return keychain.Delete(loginItem("choice")) }
 
 // WriteRoles remembers the roles the last SAML response allowed.
-func WriteRoles(roles []saml.Role) error { return write(rolesItem, roles) }
+func WriteRoles(roles []saml.Role) error { return write(loginItem("roles"), roles) }
 
 // ReadRoles returns the roles the last SAML response allowed, or nil. It
 // drops malformed roles, which earlier versions may have saved.
 func ReadRoles() ([]saml.Role, error) {
-	r, err := read[[]saml.Role](rolesItem)
+	r, err := read[[]saml.Role](loginItem("roles"))
 	if r == nil || err != nil {
 		return nil, err
 	}
@@ -140,7 +145,7 @@ func Forget() error {
 	if err := keychain.DeleteService(service + ".credentials"); err != nil {
 		return err
 	}
-	return keychain.Delete(rolesItem)
+	return keychain.Delete(loginItem("roles"))
 }
 
 func write(item keychain.Item, v any) error {
