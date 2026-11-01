@@ -4,6 +4,7 @@
 
 ### Added
 
+- `[profiles]` in the config names the AWS profiles of roles, such as `dev = "arn:aws:iam::...:role/developer"`, so `profiles sync` can manage the profile names scripts already use. It refuses to replace a profile of that name it did not write.
 - A role in `[roles]` can set its own session duration, as `name = { arn = "...", duration = "12h" }`. When STS rejects a duration as longer than the role allows, saml2sts retries once with 1 hour and says so, instead of failing the sign-in.
 
 ### Security

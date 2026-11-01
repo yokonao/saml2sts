@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -22,6 +23,10 @@ type Config struct {
 	IDP IDP `toml:"idp"`
 	// Roles maps short names to roles.
 	Roles map[string]Role `toml:"roles"`
+	// Profiles maps AWS profile names to role ARNs, or names from Roles,
+	// for profiles sync to write instead of its own names. Load resolves
+	// them to ARNs.
+	Profiles map[string]string `toml:"profiles"`
 }
 
 // Role is a role ARN, written as a string or as a table that also sets the
@@ -135,6 +140,13 @@ func Load() (Config, error) {
 		}
 		durations[r.ARN] = r.Duration
 	}
+	for name, role := range c.Profiles {
+		arn, err := c.ResolveRole(role)
+		if err != nil {
+			return Config{}, fmt.Errorf("[profiles] %s: %w", name, err)
+		}
+		c.Profiles[name] = arn
+	}
 	return c, nil
 }
 
@@ -160,6 +172,18 @@ func (c Config) Alias(arn string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// ProfileNames returns the names [profiles] gives the profiles of arn, sorted.
+func (c Config) ProfileNames(arn string) []string {
+	var names []string
+	for name, a := range c.Profiles {
+		if a == arn {
+			names = append(names, name)
+		}
+	}
+	slices.Sort(names)
+	return names
 }
 
 // Duration returns the session duration to ask STS for arn: its own from

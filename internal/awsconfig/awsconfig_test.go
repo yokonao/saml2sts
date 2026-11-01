@@ -122,3 +122,59 @@ func TestSyncRejectsInjection(t *testing.T) {
 		t.Errorf("Sync wrote the file: %v", err)
 	}
 }
+
+func TestSyncCustomNames(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config")
+	const before = `[profile dev]
+# managed by saml2sts profiles sync
+credential_process = saml2sts creds --role arn:dev
+
+[profile old]
+# managed by saml2sts profiles sync
+credential_process = saml2sts creds --role arn:old
+
+[profile mine]
+region = us-west-2
+`
+	if err := os.WriteFile(path, []byte(before), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ch, err := Sync(path, []Profile{{Name: "dev", CredentialProcess: "saml2sts creds --role arn:dev2"}}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ch.Removed) != 1 || ch.Removed[0] != "old" {
+		t.Errorf("Change = %+v", ch)
+	}
+	got, _ := os.ReadFile(path)
+	const want = `[profile mine]
+region = us-west-2
+
+[profile dev]
+# managed by saml2sts profiles sync
+credential_process = saml2sts creds --role arn:dev2
+`
+	if string(got) != want {
+		t.Errorf("file =\n%s\nwant\n%s", got, want)
+	}
+}
+
+func TestSyncRefusesForeignProfiles(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config")
+	const before = "[default]\nregion = us-east-1\n\n[profile mine]\nregion = us-west-2\n"
+	if err := os.WriteFile(path, []byte(before), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, profiles := range [][]Profile{
+		{{Name: "mine", CredentialProcess: "saml2sts creds"}},
+		{{Name: "default", CredentialProcess: "saml2sts creds"}},
+		{{Name: "a", CredentialProcess: "saml2sts creds"}, {Name: "a", CredentialProcess: "saml2sts creds --role x"}},
+	} {
+		if _, err := Sync(path, profiles, false); err == nil {
+			t.Errorf("Sync(%+v) succeeded", profiles)
+		}
+	}
+	if got, _ := os.ReadFile(path); string(got) != before {
+		t.Errorf("file changed:\n%s", got)
+	}
+}
