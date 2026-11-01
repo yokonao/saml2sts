@@ -77,3 +77,7 @@ A user-level manifest of the same name still overrides the machine-wide one, so 
 ```
 
 Use your own `update_url` for a self-hosted extension, and add the GovCloud and China sign-in hosts if you use them. Firefox reads user-level manifests as well as the machine-wide ones; force-install the add-on with its `ExtensionSettings` policy.
+
+## Check a machine
+
+`saml2sts doctor` checks the config files, the host manifests, the extension in each browser profile, the code signature and Keychain access, without signing in. It prints what to fix for each failure and exits non-zero when a check fails, so a device management tool can run it as the user.

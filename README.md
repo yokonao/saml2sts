@@ -74,6 +74,7 @@ saml2sts login  # sign in, then choose a role
 saml2sts exec --role prod-admin -- terraform plan  # --role takes an ARN or a name from [roles]
 saml2sts roles  # the roles your IdP allows
 saml2sts logout --all  # forget every role's credentials and the list of roles
+saml2sts doctor  # check the setup without signing in, and say what to fix
 ```
 
 Credentials are cached per role in the macOS Keychain, never in `~/.aws/credentials`. When they are about to expire, the next `creds` or `exec` opens the browser again; a live IdP session finishes that sign-in without you.

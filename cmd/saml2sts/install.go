@@ -26,7 +26,10 @@ type browser struct {
 	// systemDir holds the machine-wide NativeMessagingHosts; empty when the
 	// browser has none we know of.
 	systemDir string
-	firefox   bool
+	// profiles is the directory under ~/Library/Application Support that
+	// holds the browser's profiles, when it is not dir.
+	profiles string
+	firefox  bool
 }
 
 var browsers = map[string]browser{
@@ -35,7 +38,7 @@ var browsers = map[string]browser{
 	"chromium":    {dir: "Chromium", systemDir: "/Library/Application Support/Chromium"},
 	"brave":       {dir: "BraveSoftware/Brave-Browser"},
 	"edge":        {dir: "Microsoft Edge", systemDir: "/Library/Microsoft/Edge"},
-	"firefox":     {dir: "Mozilla", systemDir: "/Library/Application Support/Mozilla", firefox: true},
+	"firefox":     {dir: "Mozilla", systemDir: "/Library/Application Support/Mozilla", profiles: "Firefox/Profiles", firefox: true},
 }
 
 // systemRoot prefixes the machine-wide directories, for tests.
