@@ -59,4 +59,4 @@ saml2sts install --browser firefox --extension-id saml2sts@yokonao.github.io  # 
 
 `install` registers the path of the running binary. A version manager runs a version-specific path that an upgrade removes, so with mise pass a path that stays, such as `--path ~/.local/share/mise/shims/saml2sts`.
 
-The Chrome ID is fixed by the `key` in `extension/manifest.json`. An organization that signs its own build gets its own ID and passes that instead.
+The Chrome ID is fixed by the `key` in `extension/manifest.json`. An organization that signs its own build gets its own ID and passes that instead. To register the host for every user of a machine, see [Deploying saml2sts in an organization](organizations.md#register-the-native-messaging-host-for-the-whole-machine).
