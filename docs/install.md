@@ -1,6 +1,6 @@
 # Install
 
-saml2sts is a single binary for macOS (amd64/arm64). Install it into a directory in your `PATH` in one of these ways:
+saml2sts is a single binary for macOS and Linux (amd64/arm64). A Mac can be the [sign-in machine](../README.md#sign-in-machine-and-work-machine); Linux can only be a [work machine](#on-a-linux-work-machine). Install it into a directory in your `PATH` in one of these ways:
 
 1. [GitHub Releases](#github-releases)
 1. [mise](#mise)
@@ -11,7 +11,7 @@ saml2sts is a single binary for macOS (amd64/arm64). Install it into a directory
 Download the archive for your platform from [GitHub Releases](https://github.com/yokonao/saml2sts/releases), then install the binary into `PATH`:
 
 ```sh
-asset=saml2sts_darwin_arm64.tar.gz # saml2sts_darwin_{amd64,arm64}.tar.gz
+asset=saml2sts_darwin_arm64.tar.gz # saml2sts_{darwin,linux}_{amd64,arm64}.tar.gz
 gh release download -R yokonao/saml2sts -p "$asset" # the latest release; pass a tag for another
 tar -xzf "$asset" saml2sts
 mkdir -p ~/.local/bin
@@ -47,6 +47,30 @@ go install github.com/yokonao/saml2sts/cmd/saml2sts@latest
 ```
 
 The binary lands in `$(go env GOBIN)`, or `~/go/bin` when that is unset.
+
+## On a Linux work machine
+
+The Linux binary has only `creds`, `exec` and `roles`, which ask the [agent](agent.md) on the sign-in machine over the socket in `$SAML2STS_AGENT_SOCK`. It needs no config file, browser or secure storage, and `--role` takes a name from `[roles]` in the agent's config. Without a reachable agent, it says how to forward the socket instead of signing in.
+
+`profiles sync` runs only on the sign-in machine, so write the profiles into `~/.aws/config` yourself:
+
+```ini
+[profile dev]
+credential_process = saml2sts creds --role dev
+```
+
+### On a shared host
+
+Where you cannot install software, put the binary in your home directory; it is statically linked and needs nothing else:
+
+```sh
+mkdir -p ~/.local/bin
+install -m 755 saml2sts ~/.local/bin/
+```
+
+Then write its full path in `credential_process`, such as `/home/you/.local/bin/saml2sts creds --role dev`, since the AWS CLI does not expand `~` and may not see the `PATH` of your login shell.
+
+If the home directory does not allow running programs, ask an administrator to [verify the archive](#verify-the-archive) and install the binary for every user, such as with `sudo install -m 755 saml2sts /usr/local/bin/`.
 
 ## Browser extension
 

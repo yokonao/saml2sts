@@ -1,6 +1,6 @@
 # Agent for work machines
 
-Status: proposed, not implemented.
+Status: proposed. The client side is in place: `creds`, `exec` and `roles` ask the socket in `$SAML2STS_AGENT_SOCK`, always on Linux and on a Mac when the variable is set; see [installing on a Linux work machine](install.md#on-a-linux-work-machine). `saml2sts agent` itself is not implemented yet.
 
 Use saml2sts on a [work machine that is not the sign-in machine](../README.md#sign-in-machine-and-work-machine), such as an SSH host, WSL, a local VM or a devcontainer, by forwarding the socket of an agent on the sign-in machine to it.
 

@@ -1,3 +1,5 @@
+//go:build darwin
+
 // Package login gets credentials for a role from the cache or by signing in
 // through the browser.
 package login
