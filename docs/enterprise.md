@@ -6,7 +6,7 @@ This guide is for administrators who roll saml2sts out to many Macs with a devic
 2. [Package and publish the extension](#package-and-publish-the-extension)
 3. [Install the binary in a root-owned path](#install-the-binary-in-a-root-owned-path)
 4. [Fix the IdP settings in the system config](#fix-the-idp-settings-in-the-system-config)
-5. [Register the native messaging host for the whole machine](#register-the-native-messaging-host-for-the-whole-machine)
+5. [Place the native messaging host manifests](#place-the-native-messaging-host-manifests)
 6. [Set browser policies](#set-browser-policies)
 7. [Check each machine](#check-each-machine)
 
@@ -14,12 +14,12 @@ Then keep it up to date as in [Upgrade](#upgrade), and set up the IAM roles as i
 
 ## Build and sign your own copy
 
-Build saml2sts yourself rather than trust a personal build. Fork this repository, or pin a tag, and review the changes between tags before you release them. Nothing in the code needs to change.
+This repository publishes no binaries, so build saml2sts yourself. Fork this repository, or pin a tag, and review the changes between tags before you release them. Nothing in the code needs to change.
 
 In the fork:
 
-- Set the repository variable `SAML2STS_HOST_NAME`, such as `com.example.saml2sts`. The release workflow builds it in as the default of `install --name` and `doctor --name`. Use the same name for the extension.
-- Add these secrets, and GoReleaser signs the binaries with your Developer ID and notarizes them. Without them it builds unsigned binaries, as this repository does.
+- Set the repository variable `SAML2STS_HOST_NAME`, such as `com.example.saml2sts`. The release workflow runs only when it is set, and builds it in as the default of `doctor --name`. Use the same name for the extension and the host manifests.
+- Add these secrets, and GoReleaser signs the binaries with your Developer ID and notarizes them. The release workflow fails without them.
 
   | Secret | Value |
   | --- | --- |
@@ -29,7 +29,12 @@ In the fork:
   | `MACOS_NOTARY_KEY_ID` | App Store Connect API key ID |
   | `MACOS_NOTARY_KEY` | base64 of the `.p8` API key |
 
-Release as [docs/releasing.md](releasing.md) describes. Each archive gets a build provenance attestation, which your distribution pipeline can [verify](install.md#verify-the-archive) with `--signer-workflow` pointing at your fork.
+Release as [docs/releasing.md](releasing.md) describes. Each archive gets a [build provenance attestation](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations), which your distribution pipeline can verify:
+
+```sh
+gh attestation verify saml2sts_darwin_arm64.tar.gz \
+  -R example/saml2sts --signer-workflow example/saml2sts/.github/workflows/release.yml
+```
 
 ## Package and publish the extension
 
@@ -91,16 +96,9 @@ confirm = ["arn:aws:iam::222222222222:role/admin"]
 
 A temporary agent, `saml2sts agent exec`, shares every role regardless, since it lasts only as long as one command; `confirm` still applies to it.
 
-## Register the native messaging host for the whole machine
+## Place the native messaging host manifests
 
-Register the binary for every user:
-
-```sh
-sudo saml2sts install --system --browser chrome,edge,firefox --path /usr/local/bin/saml2sts \
-  --extension-id <Chromium extension ID> --extension-id <Firefox add-on ID>
-```
-
-`--system` refuses a binary that a user could replace. It writes the manifests to:
+The browser starts the binary a host manifest names, and only for the extensions it allows. Place one manifest per browser, named after the host name, such as `com.example.saml2sts.json`, in the machine-wide directory:
 
 | Browser | Directory |
 | --- | --- |
@@ -109,13 +107,23 @@ sudo saml2sts install --system --browser chrome,edge,firefox --path /usr/local/b
 | Edge | `/Library/Microsoft/Edge/NativeMessagingHosts` |
 | Firefox | `/Library/Application Support/Mozilla/NativeMessagingHosts` |
 
-For Brave, or to have your device management tool place the file itself, print the manifest instead:
+For the Chromium-based browsers:
 
-```sh
-saml2sts install --print --browser chrome --path /usr/local/bin/saml2sts --extension-id <ID>
+```json
+{
+  "name": "com.example.saml2sts",
+  "description": "saml2sts",
+  "path": "/usr/local/bin/saml2sts",
+  "type": "stdio",
+  "allowed_origins": ["chrome-extension://<Chromium extension ID>/"]
+}
 ```
 
-The file is named after the host name, such as `com.example.saml2sts.json`.
+For Firefox, replace `allowed_origins` with `"allowed_extensions": ["<Firefox add-on ID>"]`.
+
+Place them with your device management tool, or in the same package as the binary, so the path cannot drift from where the binary is. The manifests and every directory above them must be owned by root and writable by no one else, like the binary: a program running as a user that could change one would choose which binary every user's browser starts. `saml2sts doctor` fails when they are not.
+
+Brave has no known machine-wide directory, so it is not supported on managed machines.
 
 ## Set browser policies
 

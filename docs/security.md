@@ -36,7 +36,7 @@ The CLI and the native messaging host never talk to each other directly. They me
 
 ## Which binary the browser starts
 
-- A program running as you can register its own host under the saml2sts name in your user-level browser directories, and receive the SAML response. `install --system` registers a binary only root can replace, and the `NativeMessagingUserLevelHosts` policy makes Chrome and Edge ignore user-level hosts; see [Register the native messaging host for the whole machine](enterprise.md#register-the-native-messaging-host-for-the-whole-machine).
+- A program running as you can register its own host under the saml2sts name in your user-level browser directories, and receive the SAML response. An organization places machine-wide manifests that name a binary only root can replace, and sets the `NativeMessagingUserLevelHosts` policy so Chrome and Edge ignore user-level hosts; see [Place the native messaging host manifests](enterprise.md#place-the-native-messaging-host-manifests).
 - `saml2sts doctor` shows which manifests are registered and the binaries they name.
 
 ## Out of scope
