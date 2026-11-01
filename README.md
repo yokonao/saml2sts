@@ -20,6 +20,15 @@ Status: proof of concept. macOS, with Chromium-based browsers or Firefox.
 - The SAML response never leaves the host. Only credentials cross into the CLI.
 - Your sign-in happens in your everyday browser, so whatever your IdP requires (passkeys, device trust, MFA) just works.
 
+### Sign-in machine and work machine
+
+These docs name the two places involved:
+
+- **Sign-in machine**: runs the browser and signs in to the IdP. The extension, the native messaging host, the secure storage and the IdP session live here, and the SAML response leaves it only for AWS.
+- **Work machine**: runs the commands that use AWS, such as `aws` or `terraform`. It receives only short-lived credentials.
+
+Usually one computer is both. They differ when commands run where the browser does not, such as on an SSH host, in WSL, or in a local VM; the [agent](docs/agent.md) serves that case.
+
 ## Usage
 
 Tell saml2sts where to sign in, in `~/.config/saml2sts/config.toml`:
@@ -79,7 +88,7 @@ saml2sts doctor  # check the setup without signing in, and say what to fix
 
 Credentials are cached per role in the macOS Keychain, never in `~/.aws/credentials`. When they are about to expire, the next `creds` or `exec` opens the browser again; a live IdP session finishes that sign-in without you.
 
-For machines without your browser, such as SSH hosts, see the proposed [agent](docs/agent.md).
+For a work machine that is not the sign-in machine, see the proposed [agent](docs/agent.md).
 
 ## Try it locally
 
@@ -136,4 +145,4 @@ To go through Firefox instead, build its copy of the extension with `cd dev/brow
 
 ## Security model
 
-The SAML response and the credentials stay in the macOS Keychain and the host, and the extension forwards only the sign-in saml2sts opened. See the [security model](docs/security.md) for what saml2sts protects against and what it does not, and [SECURITY.md](SECURITY.md) to report a vulnerability.
+The SAML response, the IdP session and the credential cache stay on the sign-in machine, in the browser, the host and the macOS Keychain, and the extension forwards only the sign-in saml2sts opened. A work machine receives only short-lived credentials. See the [security model](docs/security.md) for what saml2sts protects against and what it does not, and [SECURITY.md](SECURITY.md) to report a vulnerability.
