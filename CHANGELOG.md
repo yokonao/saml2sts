@@ -4,6 +4,7 @@
 
 ### Added
 
+- `install --system` registers the host in the machine-wide directories of Chrome, Chromium, Edge and Firefox, and refuses a binary a user could replace. `install --print` writes the manifest to stdout for a device management tool to place.
 - A system config at `/Library/Application Support/saml2sts/config.toml`, owned by root, whose `[idp]` settings win over the user config. An organization can fix the IdP URL and the STS endpoint there, so a program running as the user can no longer redirect SAML responses by editing the user config. See `docs/organizations.md`.
 - `[profiles]` in the config names the AWS profiles of roles, such as `dev = "arn:aws:iam::...:role/developer"`, so `profiles sync` can manage the profile names scripts already use. It refuses to replace a profile of that name it did not write.
 - A role in `[roles]` can set its own session duration, as `name = { arn = "...", duration = "12h" }`. When STS rejects a duration as longer than the role allows, saml2sts retries once with 1 hour and says so, instead of failing the sign-in.
