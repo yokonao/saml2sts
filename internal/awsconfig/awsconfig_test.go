@@ -104,3 +104,21 @@ func TestSyncDryRunAndNewFile(t *testing.T) {
 		t.Errorf("new file mode = %v", fi.Mode().Perm())
 	}
 }
+
+func TestSyncRejectsInjection(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config")
+	for _, p := range []Profile{
+		{Name: "saml2sts-a]\n[profile b", CredentialProcess: "saml2sts creds"},
+		{Name: "saml2sts-a b", CredentialProcess: "saml2sts creds"},
+		{Name: "saml2sts-a", CredentialProcess: "saml2sts creds --role x\ncredential_process = evil"},
+		{Name: "saml2sts-a", CredentialProcess: "saml2sts creds", Region: "us-east-1\r"},
+		{Name: "saml2sts-a", CredentialProcess: "saml2sts creds", EndpointURL: "http://x\x1b[0m"},
+	} {
+		if _, err := Sync(path, []Profile{p}, false); err == nil {
+			t.Errorf("Sync accepted %+v", p)
+		}
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Errorf("Sync wrote the file: %v", err)
+	}
+}

@@ -5,6 +5,7 @@
 ### Security
 
 - The extension forwards only the SAML response from the tab saml2sts opened, matched by a nonce in the IdP URL fragment, so ordinary console sign-ins are left alone and a web page can no longer answer a waiting login. The extension now asks for the `webNavigation` and `storage` permissions.
+- Role and provider ARNs in a SAML response must be well formed, or the role is dropped, so a crafted response can no longer add lines to `~/.aws/config` or control characters to the terminal. `profiles sync` also refuses to write a profile with a control character or an unusual name.
 
 ## v0.0.1 - 2026-11-01
 

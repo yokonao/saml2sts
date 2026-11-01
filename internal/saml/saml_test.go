@@ -50,3 +50,31 @@ func TestRolesNone(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestParseRoleRejectsMalformedARNs(t *testing.T) {
+	const provider = "arn:aws:iam::111111111111:saml-provider/idp"
+	for _, role := range []string{
+		"arn:aws:iam::111111111111:role/admin\n[profile x]",
+		"arn:aws:iam::111111111111:role/admin]",
+		"arn:aws:iam::111111111111:role/ad min",
+		"arn:aws:iam::111111111111:role/\x1b[31madmin",
+		"arn:aws:iam::11111:role/admin",
+		"arn:other:iam::111111111111:role/admin",
+	} {
+		if r, ok := parseRole(role + "," + provider); ok {
+			t.Errorf("parseRole accepted %q: %v", role, r)
+		}
+	}
+	if r, ok := parseRole("arn:aws:iam::111111111111:role/admin," + provider + "\n[x]"); ok {
+		t.Errorf("parseRole accepted a provider with a newline: %v", r)
+	}
+	for _, v := range []string{
+		"arn:aws:iam::111111111111:role/team/dev+ops=a,b@c," + provider,
+		provider + ",arn:aws:iam::111111111111:role/a,b",
+		"arn:aws-us-gov:iam::111111111111:role/admin,arn:aws-us-gov:iam::111111111111:saml-provider/idp",
+	} {
+		if _, ok := parseRole(v); !ok {
+			t.Errorf("parseRole rejected %q", v)
+		}
+	}
+}
