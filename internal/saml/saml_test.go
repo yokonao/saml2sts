@@ -2,6 +2,7 @@ package saml
 
 import (
 	"encoding/base64"
+	"strings"
 	"testing"
 )
 
@@ -76,5 +77,27 @@ func TestParseRoleRejectsMalformedARNs(t *testing.T) {
 		if _, ok := parseRole(v); !ok {
 			t.Errorf("parseRole rejected %q", v)
 		}
+	}
+}
+
+func TestRolesOnlyFromTheAssertion(t *testing.T) {
+	const role = `<saml:Attribute Name="https://aws.amazon.com/SAML/Attributes/Role"><saml:AttributeValue>arn:aws:iam::111111111111:role/admin,arn:aws:iam::111111111111:saml-provider/idp</saml:AttributeValue></saml:Attribute>`
+	const head = `<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" xmlns:x="urn:example">`
+	for name, doc := range map[string]string{
+		"in extensions":         head + `<samlp:Extensions>` + role + `</samlp:Extensions><saml:Assertion/></samlp:Response>`,
+		"in another namespace":  head + `<saml:Assertion><saml:AttributeStatement><x:Attribute Name="https://aws.amazon.com/SAML/Attributes/Role"><x:AttributeValue>arn:aws:iam::111111111111:role/admin,arn:aws:iam::111111111111:saml-provider/idp</x:AttributeValue></x:Attribute></saml:AttributeStatement></saml:Assertion></samlp:Response>`,
+		"in a second assertion": head + `<saml:Assertion/><saml:Assertion><saml:AttributeStatement>` + role + `</saml:AttributeStatement></saml:Assertion></samlp:Response>`,
+	} {
+		if roles, err := Roles(base64.StdEncoding.EncodeToString([]byte(doc))); err == nil {
+			t.Errorf("%s: got %v", name, roles)
+		}
+	}
+}
+
+func TestRolesEncrypted(t *testing.T) {
+	doc := `<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"><saml:EncryptedAssertion/></samlp:Response>`
+	_, err := Roles(base64.StdEncoding.EncodeToString([]byte(doc)))
+	if err == nil || !strings.Contains(err.Error(), "encrypted") {
+		t.Errorf("Roles = %v, want an error about encryption", err)
 	}
 }

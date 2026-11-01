@@ -16,7 +16,11 @@
   ],
   "host_permissions": [
     "https://signin.aws.amazon.com/saml",
-    "https://*.signin.aws.amazon.com/saml"
+    "https://*.signin.aws.amazon.com/saml",
+    "https://signin.amazonaws-us-gov.com/saml",
+    "https://*.signin.amazonaws-us-gov.com/saml",
+    "https://signin.amazonaws.cn/saml",
+    "https://*.signin.amazonaws.cn/saml"
   ],
   "browser_specific_settings": {
     "gecko": {

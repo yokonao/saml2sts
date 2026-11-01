@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	maxRead  = 64 << 20
+	maxRead  = 1 << 20
 	maxWrite = 1 << 20
 )
 
