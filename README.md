@@ -17,7 +17,7 @@ Status: proof of concept. macOS, with Chromium-based browsers or Firefox.
 </picture>
 
 - The CLI and the host never talk to each other directly. They meet only in the OS secure storage, which on macOS lets only the saml2sts binary read what it wrote.
-- The SAML response never leaves the host. Only credentials cross into the CLI.
+- The browser still posts the SAML response to AWS as it would without saml2sts, which may start a console session in that tab; saml2sts reads only a copy. The host sends that copy to STS and nowhere else, and only credentials cross into the CLI.
 - Your sign-in happens in your everyday browser, so whatever your IdP requires (passkeys, device trust, MFA) just works.
 
 ## Usage
@@ -130,5 +130,6 @@ To go through Firefox instead, build its copy of the extension with `cd dev/brow
 - The CLI opens the IdP with a random nonce in the URL fragment, which the browser does not send to the IdP. The extension forwards only the next SAML response from the tab opened with it, together with the nonce, and the host ignores a response whose nonce does not match the waiting login. Any other sign-in is never read further or sent to the host, and a page posting a SAML response of its own cannot answer a login.
 - To see which tab saml2sts opened, the extension reads the URL of each page a tab starts loading (the `webNavigation` permission, which browsers describe as reading your browsing history). It keeps nothing but the nonce and the tab, in memory, and only for a tab whose URL carries one.
 - Credentials are never written to `~/.aws/credentials`, arguments, or logs.
+- The extension does not block the POST to AWS, so the same assertion reaches both the console and STS. Blocking it would take `webRequestBlocking`, which Chrome allows only for policy-installed extensions, or `declarativeNetRequest` with broader permissions.
 
 It does not protect against a compromised user session or saml2sts binary, or against a program the user allows at a Keychain prompt. A program running as you can also run saml2sts itself and get credentials that way; the access list only keeps other tools from reading the items.
