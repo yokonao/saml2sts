@@ -157,6 +157,10 @@ Use your own `update_url` for a self-hosted extension, and add the GovCloud and 
 
 Credentials are kept in Keychain items whose access list trusts the binary that created them. For an unsigned or ad-hoc signed binary that is its exact hash, so macOS asks once after every upgrade. A Developer ID signed binary is trusted by its designated requirement, its identifier and team, so an upgrade signed the same way is expected to read the items of the previous version without a prompt.
 
+Besides the access list, macOS tags each item with a partition: `teamid:<team>` for a binary signed with an Apple-issued certificate, and `cdhash:<hash>` otherwise, a self-signed certificate included. Only a binary of the same partition reads the item without a prompt, so only Apple-issued certificates keep access across upgrades.
+
+`dev/keychain-upgrade.sh` checks this without a release: it writes an item with one build and reads it with another. Without arguments it shows that ad-hoc and self-signed builds lose access. Pass a signing identity, such as `"Apple Development: ..."` from a free Apple ID in Xcode or your `"Developer ID Application: ..."`, to check that it keeps access.
+
 This has not been tested with a Developer ID yet. After your first signed upgrade, run `saml2sts doctor`: its Keychain check fails on any item that would need a prompt.
 
 ## Set up the AWS side
