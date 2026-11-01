@@ -60,13 +60,24 @@ function startLogin(args) {
   return start(["login", ...args]);
 }
 
+// start runs a command that signs in; url resolves to the IdP URL it prints,
+// which carries the nonce the extension looks for.
 function start(args) {
   const proc = spawn(bin, [...args, "--no-open", "--timeout", "60s"], {
-    cwd: root, env, stdio: ["pipe", "inherit", "inherit"],
+    cwd: root, env, stdio: ["pipe", "inherit", "pipe"],
+  });
+  const url = new Promise((resolve) => {
+    let buf = "";
+    proc.stderr.on("data", (chunk) => {
+      process.stderr.write(chunk);
+      buf += chunk;
+      const m = buf.match(/saml2sts: open (\S+)/);
+      if (m) resolve(m[1]);
+    });
   });
   const done = new Promise((resolve, reject) =>
     proc.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`${args.join(" ")} exited ${code}`)))));
-  return { proc, done };
+  return { proc, url, done };
 }
 
 // waitForTab waits until the tab shows the extension's status page with query.
@@ -110,6 +121,7 @@ try {
   console.log(`--- profiles sync, reading the roles (${which})`);
   const sync = start(["profiles", "sync", "--refresh", "--path", bin,
     "--region", "us-east-1", "--endpoint-url", "http://127.0.0.1:4566"]);
+  // Without the nonce, the extension leaves the sign-in alone.
   await page.goto(IDP_URL);
   await page.locator("#username").fill("alice");
   await page.locator("#password").fill("alice");
@@ -117,19 +129,23 @@ try {
     page.waitForNavigation({ waitUntil: "domcontentloaded" }).catch(() => {}),
     page.locator("#kc-login").click(),
   ]);
+  await new Promise((r) => setTimeout(r, 2000));
+  if (page.url().includes("status.html")) throw new Error("the extension took a sign-in saml2sts did not open");
+  console.log("a sign-in in a tab saml2sts did not open is left alone");
+  // From here on, the IdP session answers without the form.
+  await page.goto(await sync.url);
   await sync.done;
   await waitForTab(page, "state=listed");
 
   console.log("--- login --role poc-admin");
-  // The IdP session from the first sign-in answers without the form.
   let login = startLogin(["--role", "poc-admin"]);
-  await page.goto(IDP_URL);
+  await page.goto(await login.url);
   await login.done;
   await waitForTab(page, "state=done&role=poc-admin");
 
   console.log("--- login, choosing the role in the terminal");
   login = startLogin([]);
-  await page.goto(IDP_URL);
+  await page.goto(await login.url);
   await waitForTab(page, "state=choose");
   login.proc.stdin.end("2\n");
   await login.done;

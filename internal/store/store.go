@@ -10,6 +10,7 @@
 package store
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"time"
 
@@ -40,8 +41,19 @@ type Pending struct {
 	ListOnly bool `json:"list_only,omitempty"`
 	// Secret is echoed in Result and Choice, so neither side accepts an item
 	// planted by a program that cannot read this one.
-	Secret  string    `json:"secret"`
+	Secret string `json:"secret"`
+	// Nonce travels with the IdP URL through the browser and back with the
+	// SAML response, so the host takes only the response of the tab the
+	// login opened. Unlike Secret, web pages in that tab can see it.
+	Nonce   string    `json:"nonce"`
 	Expires time.Time `json:"expires"`
+}
+
+// Accepts reports whether a SAML response the extension sent with nonce
+// answers p.
+func (p *Pending) Accepts(nonce string, now time.Time) bool {
+	return p != nil && now.Before(p.Expires) && nonce != "" &&
+		subtle.ConstantTimeCompare([]byte(nonce), []byte(p.Nonce)) == 1
 }
 
 // Result is the host's answer to a Pending login: the roles to choose from,

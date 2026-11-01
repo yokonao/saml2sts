@@ -18,12 +18,13 @@ import (
 
 type hostRequest struct {
 	SAMLResponse string `json:"samlResponse"`
+	Nonce        string `json:"nonce"`
 }
 
 type hostReply struct {
 	// Status is "choose" while the user picks a role in the terminal, then
 	// "ok", "listed" for a login that wanted only the roles, or "error";
-	// "idle" means no login is pending.
+	// "idle" means no login is pending for the nonce.
 	Status string `json:"status"`
 	Error  string `json:"error,omitempty"`
 	// Role names the role an "ok" signed in to.
@@ -50,7 +51,7 @@ func runNativeHost(r io.Reader, w io.Writer) error {
 	if err != nil {
 		return nativemsg.Write(w, hostReply{Status: "error", Error: err.Error()})
 	}
-	if p == nil || time.Now().After(p.Expires) {
+	if !p.Accepts(req.Nonce, time.Now()) {
 		return nativemsg.Write(w, hostReply{Status: "idle"})
 	}
 

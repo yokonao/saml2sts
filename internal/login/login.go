@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -93,6 +94,7 @@ func signIn(ctx context.Context, cfg config.Config, p store.Pending, opts Option
 
 	secret := rand.Text()
 	p.Secret = secret
+	p.Nonce = rand.Text()
 	p.Expires = time.Now().Add(opts.Timeout)
 	if err := store.WritePending(p); err != nil {
 		return nil, err
@@ -103,12 +105,16 @@ func signIn(ctx context.Context, cfg config.Config, p store.Pending, opts Option
 		_ = store.DeleteChoice()
 	}()
 
+	u, err := idpURL(cfg.IDP.URL, p.Nonce)
+	if err != nil {
+		return nil, err
+	}
 	if opts.NoOpen {
-		opts.logf("saml2sts: open %s\n", cfg.IDP.URL)
+		opts.logf("saml2sts: open %s\n", u)
 	} else {
 		opts.logf("saml2sts: signing in through the browser\n")
-		if err := exec.Command("open", cfg.IDP.URL).Run(); err != nil {
-			opts.logf("saml2sts: open %s yourself: %v\n", cfg.IDP.URL, err)
+		if err := exec.Command("open", u).Run(); err != nil {
+			opts.logf("saml2sts: open %s yourself: %v\n", u, err)
 		}
 	}
 
@@ -153,6 +159,21 @@ func signIn(ctx context.Context, cfg config.Config, p store.Pending, opts Option
 			return r, nil
 		}
 	}
+}
+
+// idpURL adds the nonce to the fragment of the IdP URL, which the browser
+// does not send to the IdP but the extension sees.
+func idpURL(raw, nonce string) (string, error) {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "", fmt.Errorf("idp.url: %w", err)
+	}
+	f := "saml2sts=" + nonce
+	if u.Fragment != "" {
+		f = u.Fragment + "&" + f
+	}
+	u.Fragment = f
+	return u.String(), nil
 }
 
 // lock serializes logins, so concurrent credential_process calls open the

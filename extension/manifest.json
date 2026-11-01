@@ -10,6 +10,8 @@
   "action": {},
   "permissions": [
     "webRequest",
+    "webNavigation",
+    "storage",
     "nativeMessaging"
   ],
   "host_permissions": [
