@@ -1,11 +1,13 @@
-// Package config loads $XDG_CONFIG_HOME/saml2sts/config.toml: the IdP to sign
-// in with and optional short names for roles.
+// Package config loads the system config, which an organization manages, and
+// $XDG_CONFIG_HOME/saml2sts/config.toml: the IdP to sign in with and optional
+// short names for roles. Settings of the system config win.
 package config
 
 import (
 	"cmp"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/url"
 	"os"
@@ -16,6 +18,8 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+
+	"github.com/yokonao/saml2sts/internal/rootowned"
 )
 
 // Config is the whole file.
@@ -27,6 +31,9 @@ type Config struct {
 	// for profiles sync to write instead of its own names. Load resolves
 	// them to ARNs.
 	Profiles map[string]string `toml:"profiles"`
+	// Sources maps each [idp] key set to the file that set it, such as
+	// "idp.url".
+	Sources map[string]string `toml:"-"`
 }
 
 // Role is a role ARN, written as a string or as a table that also sets the
@@ -107,18 +114,58 @@ func Path() (string, error) {
 	return filepath.Join(dir, "saml2sts", "config.toml"), nil
 }
 
-// Load reads and validates the config file.
+// SystemPath is the config an organization manages. It must be owned by root,
+// and no environment variable moves it, so a program running as the user
+// cannot change what it sets.
+var SystemPath = "/Library/Application Support/saml2sts/config.toml"
+
+var idpKeys = []string{"url", "duration", "region", "sts_endpoint"}
+
+// Files returns the config files that exist, the system one first.
+func Files() ([]string, error) {
+	user, err := Path()
+	if err != nil {
+		return nil, err
+	}
+	var files []string
+	for _, p := range []string{SystemPath, user} {
+		if _, err := os.Stat(p); err == nil {
+			files = append(files, p)
+		} else if !os.IsNotExist(err) {
+			return nil, err
+		}
+	}
+	return files, nil
+}
+
+// Load reads, merges and validates the config files.
 func Load() (Config, error) {
-	path, err := Path()
+	user, err := Path()
 	if err != nil {
 		return Config{}, err
 	}
-	var c Config
-	if _, err := toml.DecodeFile(path, &c); err != nil {
+	sys, sysMeta, err := decode(SystemPath, true)
+	if err != nil {
 		return Config{}, err
 	}
+	c, userMeta, err := decode(user, sysMeta != nil)
+	if err != nil {
+		return Config{}, err
+	}
+	c.Sources = map[string]string{}
+	for _, k := range idpKeys {
+		if userMeta != nil && userMeta.IsDefined("idp", k) {
+			c.Sources["idp."+k] = user
+		}
+	}
+	if sysMeta != nil {
+		if err := rootowned.Check(SystemPath); err != nil {
+			return Config{}, fmt.Errorf("system config: %w", err)
+		}
+		merge(&c, sys, sysMeta)
+	}
 	if c.IDP.URL == "" {
-		return Config{}, fmt.Errorf("%s has no [idp] url", path)
+		return Config{}, fmt.Errorf("no [idp] url in %s or %s", user, SystemPath)
 	}
 	c.IDP.Region = cmp.Or(c.IDP.Region, "us-east-1")
 	if !validRegion.MatchString(c.IDP.Region) {
@@ -148,6 +195,45 @@ func Load() (Config, error) {
 		c.Profiles[name] = arn
 	}
 	return c, nil
+}
+
+// decode reads path, returning nil metadata when it does not exist and
+// optional is set.
+func decode(path string, optional bool) (Config, *toml.MetaData, error) {
+	var c Config
+	md, err := toml.DecodeFile(path, &c)
+	if errors.Is(err, os.ErrNotExist) && optional {
+		return Config{}, nil, nil
+	}
+	if err != nil {
+		return Config{}, nil, err
+	}
+	return c, &md, nil
+}
+
+// merge puts the settings sys sets over those of c.
+func merge(c *Config, sys Config, md *toml.MetaData) {
+	set := func(key string, dst *string, v string) {
+		if md.IsDefined("idp", key) {
+			*dst = v
+			c.Sources["idp."+key] = SystemPath
+		}
+	}
+	set("url", &c.IDP.URL, sys.IDP.URL)
+	set("region", &c.IDP.Region, sys.IDP.Region)
+	set("sts_endpoint", &c.IDP.STSEndpoint, sys.IDP.STSEndpoint)
+	if md.IsDefined("idp", "duration") {
+		c.IDP.Duration = sys.IDP.Duration
+		c.Sources["idp.duration"] = SystemPath
+	}
+	if len(sys.Roles) > 0 && c.Roles == nil {
+		c.Roles = map[string]Role{}
+	}
+	maps.Copy(c.Roles, sys.Roles)
+	if len(sys.Profiles) > 0 && c.Profiles == nil {
+		c.Profiles = map[string]string{}
+	}
+	maps.Copy(c.Profiles, sys.Profiles)
 }
 
 // ResolveRole turns a short name from [roles], or a role ARN, into a role ARN.
