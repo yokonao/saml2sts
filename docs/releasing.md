@@ -11,4 +11,4 @@ Pushing the tag runs `.github/workflows/release.yml`, which builds the binaries 
 
 `goreleaser release --snapshot --clean` builds the same archives into `dist/` locally without publishing.
 
-The release signs and notarizes the binaries only when the `MACOS_SIGN_*` and `MACOS_NOTARY_*` secrets are set, and builds in the host name of the `SAML2STS_HOST_NAME` variable when it is; see [Deploying saml2sts in an organization](organizations.md#what-to-change).
+The release signs and notarizes the binaries only when the `MACOS_SIGN_*` and `MACOS_NOTARY_*` secrets are set, and builds in the host name of the `SAML2STS_HOST_NAME` variable when it is; see [Running saml2sts in an enterprise](enterprise.md#build-and-sign-your-own-copy).
