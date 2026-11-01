@@ -2,6 +2,13 @@
 
 saml2sts handles two secrets: the SAML response, which can assume any role your IdP allows until it expires, and the temporary AWS credentials of one role. This page says how each is kept from other programs, and what is out of scope.
 
+## What each machine holds
+
+The [sign-in machine and the work machine](../README.md#sign-in-machine-and-work-machine) hold different things:
+
+- The sign-in machine holds the IdP session in the browser, the SAML response in the native messaging host while it is exchanged, and logins and credentials in secure storage. The rest of this page is about keeping these there.
+- The work machine holds only the temporary credentials a command asked for, in that command's memory. When it is not the sign-in machine, it gets them from the [agent](agent.md), and anything on it that can reach the forwarded socket, including root, can ask for credentials too.
+
 ## Credentials and logins at rest
 
 - Logins and credentials are kept in the OS secure storage, which is the macOS Keychain today. Items are created with the default access list, which lets only the saml2sts binary that created them read them without a prompt. Rebuilding or upgrading an unsigned binary makes a new one, and macOS asks once for the old items; see [Keychain access across upgrades](enterprise.md#keychain-access-across-upgrades) for signed builds.
