@@ -69,6 +69,8 @@ type Result struct {
 	Roles       []saml.Role             `json:"roles,omitempty"`
 	Credentials *federation.Credentials `json:"credentials,omitempty"`
 	RoleARN     string                  `json:"role_arn,omitempty"`
+	// Notice is for the user, such as a session shorter than asked for.
+	Notice string `json:"notice,omitempty"`
 	// Listed answers a ListOnly login: the roles are saved.
 	Listed bool   `json:"listed,omitempty"`
 	Error  string `json:"error,omitempty"`

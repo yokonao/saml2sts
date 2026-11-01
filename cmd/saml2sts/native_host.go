@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/subtle"
 	"errors"
+	"fmt"
 	"io"
 	"path/filepath"
 	"strings"
@@ -69,7 +70,7 @@ func runNativeHost(r io.Reader, w io.Writer) error {
 	}
 
 	notify := func() error { return nativemsg.Write(w, hostReply{Status: "choose"}) }
-	cfg, c, roleARN, err := exchange(*p, req.SAMLResponse, notify)
+	cfg, c, roleARN, notice, err := exchange(*p, req.SAMLResponse, notify)
 	if err != nil {
 		// The login stays pending, so the user can sign in again.
 		if werr := store.WriteResult(store.Result{Secret: p.Secret, Error: err.Error()}); werr != nil {
@@ -77,7 +78,7 @@ func runNativeHost(r io.Reader, w io.Writer) error {
 		}
 		return nativemsg.Write(w, hostReply{Status: "error", Error: err.Error()})
 	}
-	if err := store.WriteResult(store.Result{Secret: p.Secret, Credentials: &c, RoleARN: roleARN}); err != nil {
+	if err := store.WriteResult(store.Result{Secret: p.Secret, Credentials: &c, RoleARN: roleARN, Notice: notice}); err != nil {
 		return nativemsg.Write(w, hostReply{Status: "error", Error: err.Error()})
 	}
 	if err := store.DeletePending(); err != nil {
@@ -108,36 +109,44 @@ func listRoles(w io.Writer, p store.Pending, samlResponse string) error {
 	return nativemsg.Write(w, hostReply{Status: "listed"})
 }
 
-// exchange calls notify before waiting for the user to choose a role.
-func exchange(p store.Pending, samlResponse string, notify func() error) (config.Config, federation.Credentials, string, error) {
-	cfg, err := config.Load()
-	if err != nil {
-		return cfg, federation.Credentials{}, "", err
+// exchange calls notify before waiting for the user to choose a role. The
+// notice tells the user about a shorter session than asked for.
+func exchange(p store.Pending, samlResponse string, notify func() error) (cfg config.Config, c federation.Credentials, roleARN, notice string, err error) {
+	if cfg, err = config.Load(); err != nil {
+		return
 	}
 	roles, err := saml.Roles(samlResponse)
 	if err != nil {
-		return cfg, federation.Credentials{}, "", err
+		return
 	}
-	if err := store.WriteRoles(roles); err != nil {
-		return cfg, federation.Credentials{}, "", err
+	if err = store.WriteRoles(roles); err != nil {
+		return
 	}
-	roleARN := p.RoleARN
+	roleARN = p.RoleARN
 	if roleARN == "" && len(roles) > 1 {
-		if err := notify(); err != nil {
-			return cfg, federation.Credentials{}, "", err
+		if err = notify(); err != nil {
+			return
 		}
 		if roleARN, err = askForRole(p.Secret, roles); err != nil {
-			return cfg, federation.Credentials{}, "", err
+			return
 		}
 	}
 	role, err := saml.Select(roles, roleARN)
 	if err != nil {
-		return cfg, federation.Credentials{}, "", err
+		return
 	}
+	roleARN = role.RoleARN
 	ctx, cancel := context.WithTimeout(context.Background(), stsTimeout)
 	defer cancel()
-	c, err := federation.AssumeRole(ctx, cfg.IDP.Region, cfg.IDP.STSEndpoint, role, samlResponse, cfg.IDP.Duration.Duration)
-	return cfg, c, role.RoleARN, err
+	d := cfg.Duration(roleARN)
+	c, err = federation.AssumeRole(ctx, cfg.IDP.Region, cfg.IDP.STSEndpoint, role, samlResponse, d)
+	if d > federation.DefaultDuration && federation.DurationTooLong(err) {
+		// STS rejects the duration before it looks at the assertion, which
+		// stays valid for another call.
+		notice = fmt.Sprintf("%s does not allow sessions of %s, so this one lasts %s", cfg.RoleName(roleARN), d, federation.DefaultDuration)
+		c, err = federation.AssumeRole(ctx, cfg.IDP.Region, cfg.IDP.STSEndpoint, role, samlResponse, federation.DefaultDuration)
+	}
+	return
 }
 
 // askForRole hands the roles to the waiting login and returns the one the

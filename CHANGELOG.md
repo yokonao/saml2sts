@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- A role in `[roles]` can set its own session duration, as `name = { arn = "...", duration = "12h" }`. When STS rejects a duration as longer than the role allows, saml2sts retries once with 1 hour and says so, instead of failing the sign-in.
+
 ### Security
 
 - The extension forwards only the SAML response from the tab saml2sts opened, matched by a nonce in the IdP URL fragment, so ordinary console sign-ins are left alone and a web page can no longer answer a waiting login. The extension now asks for the `webNavigation` and `storage` permissions.
