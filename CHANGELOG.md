@@ -4,6 +4,7 @@
 
 ### Added
 
+- An organization can build its own copy: `dev/browser/package-extension.mjs` packages the extension with its own host name and key for the Chrome Web Store, a self-hosted CRX and Firefox, and the release config builds in the host name of `SAML2STS_HOST_NAME` and signs and notarizes the binaries when the signing secrets are set. See `docs/organizations.md`.
 - `doctor` checks the setup without signing in: the config files and where the IdP settings come from, the host manifests and the binaries they name, the extension in each browser profile, the code signature, and whether the Keychain items can be read without a prompt. It says what to fix and exits non-zero when a check fails.
 - `install --system` registers the host in the machine-wide directories of Chrome, Chromium, Edge and Firefox, and refuses a binary a user could replace. `install --print` writes the manifest to stdout for a device management tool to place.
 - A system config at `/Library/Application Support/saml2sts/config.toml`, owned by root, whose `[idp]` settings win over the user config. An organization can fix the IdP URL and the STS endpoint there, so a program running as the user can no longer redirect SAML responses by editing the user config. See `docs/organizations.md`.

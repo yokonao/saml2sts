@@ -81,3 +81,57 @@ Use your own `update_url` for a self-hosted extension, and add the GovCloud and 
 ## Check a machine
 
 `saml2sts doctor` checks the config files, the host manifests, the extension in each browser profile, the code signature and Keychain access, without signing in. It prints what to fix for each failure and exits non-zero when a check fails, so a device management tool can run it as the user.
+
+## Build, sign and distribute your own copy
+
+An organization usually builds saml2sts itself and publishes the extension under its own key rather than trust a personal build.
+
+### What to fork or pin
+
+Fork this repository, or pin a tag, and review the changes between tags before you release them. Nothing else needs to change in the code.
+
+### What to change
+
+- **Host name**: set the repository variable `SAML2STS_HOST_NAME`, such as `com.example.saml2sts`. The release workflow builds it in as the default of `install --name` and `doctor --name`. Use the same name for the extension below.
+- **Signing**: add the secrets below to have GoReleaser sign the binaries with your Developer ID and notarize them. Without them it builds unsigned binaries, as this repository does.
+
+  | Secret | Value |
+  | --- | --- |
+  | `MACOS_SIGN_P12` | base64 of the Developer ID Application certificate and key, as `.p12` |
+  | `MACOS_SIGN_PASSWORD` | its password |
+  | `MACOS_NOTARY_ISSUER_ID` | App Store Connect API issuer ID |
+  | `MACOS_NOTARY_KEY_ID` | App Store Connect API key ID |
+  | `MACOS_NOTARY_KEY` | base64 of the `.p8` API key |
+
+- **Extension**: package it with your host name and key:
+
+  ```sh
+  openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out key.pem  # once; keep it secret
+  cd dev/browser && npm ci
+  node package-extension.mjs --host-name com.example.saml2sts --key key.pem \
+    --gecko-id saml2sts@example.com --chrome "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+  ```
+
+  It writes to `dist/extension/`:
+
+  | File | For |
+  | --- | --- |
+  | `chrome-web-store.zip` | the Chrome Web Store, which assigns the ID; pass that ID to `install` |
+  | `chrome/` | loading unpacked, with the ID the script prints |
+  | `saml2sts.crx` | self-hosting with an `update_url`, signed with `key.pem`, with the same ID |
+  | `firefox.zip` | addons.mozilla.org, or `web-ext sign --channel unlisted` for self-distribution |
+
+### What to distribute
+
+1. The signed binary, in a root-owned path such as `/usr/local/bin/saml2sts`.
+2. The system config, with `[idp]` fixed ([above](#fix-the-idp-settings-in-the-system-config)).
+3. The host manifests from `install --system` or `install --print` ([above](#register-the-native-messaging-host-for-the-whole-machine)).
+4. The extension, force-installed by browser policy.
+
+Then run `saml2sts doctor` as a user to check the result.
+
+### Keychain access across upgrades
+
+Credentials are kept in Keychain items whose access list trusts the binary that created them. For an unsigned or ad-hoc signed binary that is its exact hash, so macOS asks once after every upgrade. A Developer ID signed binary is trusted by its designated requirement, its identifier and team, so an upgrade signed the same way is expected to read the items of the previous version without a prompt.
+
+This has not been tested with a Developer ID yet. After your first signed upgrade, run `saml2sts doctor`: its Keychain check fails on any item that would need a prompt.

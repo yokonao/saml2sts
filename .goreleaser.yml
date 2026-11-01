@@ -14,6 +14,22 @@ builds:
       - -trimpath
     ldflags:
       - -s -w -X main.version={{.Version}}
+      - -X main.defaultHostName={{ or (envOrDefault "SAML2STS_HOST_NAME" "") "io.github.yokonao.saml2sts" }}
+
+# Signs with a Developer ID and notarizes when the secrets are there, so a
+# fork only adds them.
+notarize:
+  macos:
+    - enabled: '{{ ne (envOrDefault "MACOS_SIGN_P12" "") "" }}'
+      sign:
+        certificate: "{{.Env.MACOS_SIGN_P12}}"
+        password: "{{.Env.MACOS_SIGN_PASSWORD}}"
+      notarize:
+        issuer_id: "{{.Env.MACOS_NOTARY_ISSUER_ID}}"
+        key_id: "{{.Env.MACOS_NOTARY_KEY_ID}}"
+        key: "{{.Env.MACOS_NOTARY_KEY}}"
+        wait: true
+        timeout: 20m
 
 archives:
   - formats: [tar.gz]

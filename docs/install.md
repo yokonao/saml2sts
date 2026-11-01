@@ -18,7 +18,7 @@ mkdir -p ~/.local/bin
 install -m 755 saml2sts ~/.local/bin/
 ```
 
-The macOS binaries are not notarized. `gh` and `curl` do not mark downloads as quarantined, but a browser does, and macOS then refuses to run the binary; remove the mark with `xattr -d com.apple.quarantine saml2sts`.
+The macOS binaries of this repository are not signed with a Developer ID or notarized; an organization can sign its own builds, see [Deploying saml2sts in an organization](organizations.md#build-sign-and-distribute-your-own-copy). `gh` and `curl` do not mark downloads as quarantined, but a browser does, and macOS then refuses to run the binary; remove the mark with `xattr -d com.apple.quarantine saml2sts`.
 
 ### Verify the archive
 
