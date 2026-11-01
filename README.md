@@ -108,7 +108,7 @@ cd dev && docker compose up -d && ./setup.sh && cd ..
 
 The Firefox run registers the host in `~/Library/Application Support/Mozilla`, the only place Firefox looks, and puts back what was there afterwards.
 
-The diagram above is drawn in `docs/flow.html`; `cd dev/browser && npm run diagram` renders it to `docs/images`.
+The diagrams are drawn in `dev/diagrams`; `cd dev/browser && npm run diagram` renders them to `docs/images`.
 
 `dev/compose.yml` runs Keycloak (user `alice` / `alice`) and [floci](https://floci.io/) as the AWS endpoint.
 

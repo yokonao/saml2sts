@@ -1,4 +1,4 @@
-/* Shared by docs/*.html diagrams. */
+/* Shared by the diagrams in this directory. */
 :root {
   --bg: #ffffff; --fg: #1f2328; --muted: #59636e; --line: #6e7781;
   --zone: #f6f8fa; --zone-line: #d1d9e0; --node: #ffffff; --node-line: #afb8c1;

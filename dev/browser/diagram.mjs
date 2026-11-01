@@ -1,4 +1,4 @@
-// Renders each docs/<name>.html diagram to docs/images/<name>-{light,dark}.png.
+// Renders each dev/diagrams/<name>.html to docs/images/<name>-{light,dark}.png.
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { Browser, computeExecutablePath, install } from "@puppeteer/browsers";
@@ -18,7 +18,7 @@ try {
   await page.setViewport({ width: 1200, height: 800, deviceScaleFactor: 2 });
   for (const name of DIAGRAMS) {
     for (const theme of ["light", "dark"]) {
-      const url = pathToFileURL(path.join(root, "docs", `${name}.html`));
+      const url = pathToFileURL(path.join(root, "dev/diagrams", `${name}.html`));
       url.searchParams.set("theme", theme);
       await page.goto(url.href);
       const out = path.join(root, "docs/images", `${name}-${theme}.png`);
