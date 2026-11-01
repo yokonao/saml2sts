@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Security
+
+- The extension forwards only the SAML response from the tab saml2sts opened, matched by a nonce in the IdP URL fragment, so ordinary console sign-ins are left alone and a web page can no longer answer a waiting login. The extension now asks for the `webNavigation` and `storage` permissions.
+
 ## v0.0.1 - 2026-11-01
 
 Initial release, a proof of concept for macOS with Chromium-based browsers and Firefox.

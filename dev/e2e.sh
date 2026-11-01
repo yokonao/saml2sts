@@ -42,14 +42,20 @@ sign_in() {
   fi
 }
 
-# deliver hands the SAML response to the native host as the extension would.
+# nonce prints the nonce of the IdP URL the waiting login printed to $work/login.log.
+nonce() {
+  sed -n 's/.*#saml2sts=\([^&]*\).*/\1/p' "$work/login.log" | tail -n 1
+}
+
+# deliver hands the SAML response to the native host as the extension would,
+# with the nonce in $1.
 deliver() {
   python3 -I -c '
 import html, json, re, struct, sys
 v = html.unescape(re.search(r"name=\"SAMLResponse\"\s+value=\"([^\"]+)\"", open(sys.argv[1]).read()).group(1))
-d = json.dumps({"samlResponse": v}).encode()
+d = json.dumps({"samlResponse": v, "nonce": sys.argv[2]}).encode()
 sys.stdout.buffer.write(struct.pack("=I", len(d)) + d)
-' "$work/post.html" | "$bin" chrome-extension://ljanpcedhfnidohflcgdjflhhjebpikb/ | python3 -I -c '
+' "$work/post.html" "$1" | "$bin" chrome-extension://ljanpcedhfnidohflcgdjflhhjebpikb/ | python3 -I -c '
 import json, struct, sys
 b = sys.stdin.buffer.read()
 while b:
@@ -63,12 +69,16 @@ export AWS_CONFIG_FILE="$work/aws-config"
 
 echo "--- profiles sync, reading the roles"
 "$bin" profiles sync --refresh --no-open --timeout 20s \
-  --path "$bin" --region us-east-1 --endpoint-url http://127.0.0.1:4566 &
+  --path "$bin" --region us-east-1 --endpoint-url http://127.0.0.1:4566 2> "$work/login.log" &
 login_pid=$!
 sleep 1
 sign_in
-deliver
+echo "a SAML response without the login's nonce is ignored:"
+deliver "" | tee "$work/host.log"
+grep -q "'idle'" "$work/host.log"
+deliver "$(nonce)"
 wait $login_pid
+cat "$work/login.log" >&2
 grep '^\[profile' "$AWS_CONFIG_FILE"
 if "$bin" creds --role poc-admin --no-open --timeout 2s > /dev/null 2>&1; then
   echo "profiles sync left credentials behind" >&2
@@ -77,20 +87,22 @@ fi
 echo "no role was assumed"
 
 echo "--- login --role poc-admin"
-"$bin" login --role poc-admin --no-open --timeout 20s &
+"$bin" login --role poc-admin --no-open --timeout 20s 2> "$work/login.log" &
 login_pid=$!
 sleep 1
 sign_in
-deliver
+deliver "$(nonce)"
 wait $login_pid
+cat "$work/login.log" >&2
 
 echo "--- login, choosing the role afterwards"
-printf '2\n' | "$bin" login --no-open --timeout 20s &
+printf '2\n' | "$bin" login --no-open --timeout 20s 2> "$work/login.log" &
 login_pid=$!
 sleep 1
 sign_in
-deliver
+deliver "$(nonce)"
 wait $login_pid
+cat "$work/login.log" >&2
 login_pid=
 
 echo "--- roles"

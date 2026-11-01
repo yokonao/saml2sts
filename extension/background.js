@@ -5,11 +5,43 @@ const BADGE = {
   error: { text: "ERR", color: "#cf222e" },
 };
 
+// How long after saml2sts opened a tab its SAML POST is still forwarded; the
+// CLI waits five minutes by default.
+const LOGIN_TTL_MS = 15 * 60_000;
+
+// The CLI opens the IdP with #saml2sts=<nonce>. Remember that tab, in session
+// storage since the service worker may stop before the sign-in ends.
+chrome.webNavigation.onBeforeNavigate.addListener((details) => {
+  if (details.frameId !== 0) return;
+  const nonce = new URLSearchParams(new URL(details.url).hash.slice(1)).get("saml2sts");
+  if (!nonce) return;
+  chrome.storage.session.set({ [tabKey(details.tabId)]: { nonce, expires: Date.now() + LOGIN_TTL_MS } });
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => chrome.storage.session.remove(tabKey(tabId)));
+
+// takeLogin returns the nonce of the login the tab was opened for, once.
+async function takeLogin(tabId) {
+  const key = tabKey(tabId);
+  const login = (await chrome.storage.session.get(key))[key];
+  if (!login) return null;
+  await chrome.storage.session.remove(key);
+  return Date.now() < login.expires ? login.nonce : null;
+}
+
+function tabKey(tabId) {
+  return `tab:${tabId}`;
+}
+
 chrome.webRequest.onBeforeRequest.addListener(
-  (details) => {
+  async (details) => {
     if (details.method !== "POST") return;
     const samlResponse = details.requestBody?.formData?.SAMLResponse?.[0];
     if (!samlResponse) return;
+    // Any other sign-in, or a page posting a SAML response of its own, is
+    // never read further or sent to the host.
+    const nonce = await takeLogin(details.tabId);
+    if (!nonce) return;
 
     // A port rather than sendNativeMessage, since the host replies twice when
     // the user has to choose a role.
@@ -18,7 +50,7 @@ chrome.webRequest.onBeforeRequest.addListener(
     port.onMessage.addListener((reply) => {
       replied = true;
       switch (reply.status) {
-        case "idle": // No CLI is waiting: an ordinary console sign-in.
+        case "idle": // The login is over or not this one.
           return;
         case "choose":
           showStatus(details.tabId, { state: "choose" });
@@ -44,7 +76,7 @@ chrome.webRequest.onBeforeRequest.addListener(
         showBadge("error");
       }
     });
-    port.postMessage({ samlResponse });
+    port.postMessage({ samlResponse, nonce });
   },
   {
     urls: [

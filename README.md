@@ -127,7 +127,8 @@ To go through Firefox instead, build its copy of the extension with `cd dev/brow
 - The login request carries a random secret the host echoes back, so the CLI ignores results it did not ask for.
 - The host reads the STS endpoint from the config file, never from the login request, so a planted request cannot send the SAML response elsewhere. `sts_endpoint` must be HTTPS, or HTTP to localhost.
 - Each sign-in assumes only the one role asked for or chosen, never every role the IdP allows.
-- The extension replaces the tab only when a login was waiting; an ordinary console sign-in goes through untouched.
+- The CLI opens the IdP with a random nonce in the URL fragment, which the browser does not send to the IdP. The extension forwards only the next SAML response from the tab opened with it, together with the nonce, and the host ignores a response whose nonce does not match the waiting login. Any other sign-in is never read further or sent to the host, and a page posting a SAML response of its own cannot answer a login.
+- To see which tab saml2sts opened, the extension reads the URL of each page a tab starts loading (the `webNavigation` permission, which browsers describe as reading your browsing history). It keeps nothing but the nonce and the tab, in memory, and only for a tab whose URL carries one.
 - Credentials are never written to `~/.aws/credentials`, arguments, or logs.
 
 It does not protect against a compromised user session or saml2sts binary, or against a program the user allows at a Keychain prompt. A program running as you can also run saml2sts itself and get credentials that way; the access list only keeps other tools from reading the items.
