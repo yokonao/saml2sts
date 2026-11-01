@@ -11,6 +11,7 @@ import (
 
 	"github.com/yokonao/saml2sts/internal/config"
 	"github.com/yokonao/saml2sts/internal/federation"
+	"github.com/yokonao/saml2sts/internal/flock"
 	"github.com/yokonao/saml2sts/internal/nativemsg"
 	"github.com/yokonao/saml2sts/internal/saml"
 	"github.com/yokonao/saml2sts/internal/store"
@@ -47,6 +48,13 @@ func runNativeHost(r io.Reader, w io.Writer) error {
 	if err := nativemsg.Read(r, &req); err != nil {
 		return nativemsg.Write(w, hostReply{Status: "error", Error: "malformed message"})
 	}
+	// The CLI holds its own lock for the whole login, so hosts take another.
+	// A host that waited here finds the login gone once the first succeeded.
+	unlock, err := flock.Lock("host.lock")
+	if err != nil {
+		return nativemsg.Write(w, hostReply{Status: "error", Error: err.Error()})
+	}
+	defer unlock()
 	p, err := store.ReadPending()
 	if err != nil {
 		return nativemsg.Write(w, hostReply{Status: "error", Error: err.Error()})

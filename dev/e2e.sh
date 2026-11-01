@@ -86,12 +86,17 @@ if "$bin" creds --role poc-admin --no-open --timeout 2s > /dev/null 2>&1; then
 fi
 echo "no role was assumed"
 
-echo "--- login --role poc-admin"
+echo "--- login --role poc-admin, with the SAML response delivered twice at once"
 "$bin" login --role poc-admin --no-open --timeout 20s 2> "$work/login.log" &
 login_pid=$!
 sleep 1
 sign_in
-deliver "$(nonce)"
+deliver "$(nonce)" > "$work/host1.log" &
+deliver_pid=$!
+deliver "$(nonce)" > "$work/host2.log"
+wait $deliver_pid
+cat "$work/host1.log" "$work/host2.log"
+[ "$(cat "$work/host1.log" "$work/host2.log" | grep -c "'ok'")" = 1 ]
 wait $login_pid
 cat "$work/login.log" >&2
 

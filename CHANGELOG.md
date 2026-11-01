@@ -10,6 +10,7 @@
 ### Fixed
 
 - `exec` replaces AWS credential variables the parent already had, instead of passing both, so nested `exec` or a shell script no longer runs with the parent's credentials.
+- Two SAML POSTs for one login, from a reload or two tabs, no longer both call STS; only one is exchanged.
 
 ## v0.0.1 - 2026-11-01
 
