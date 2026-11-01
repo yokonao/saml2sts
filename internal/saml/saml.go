@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 )
 
@@ -31,11 +32,9 @@ func Roles(samlResponse string) ([]Role, error) {
 	}
 	var roles []Role
 	for _, v := range values {
-		r, err := parseRole(v)
-		if err != nil {
-			return nil, err
+		if r, ok := parseRole(v); ok {
+			roles = append(roles, r)
 		}
-		roles = append(roles, r)
 	}
 	if len(roles) == 0 {
 		return nil, errors.New("SAML response has no AWS role")
@@ -59,20 +58,36 @@ func Select(roles []Role, roleARN string) (Role, error) {
 	return Role{}, fmt.Errorf("SAML response does not allow %s", roleARN)
 }
 
-// parseRole accepts both orders of "role,principal" that IdPs emit.
-func parseRole(v string) (Role, error) {
-	a, b, ok := strings.Cut(strings.TrimSpace(v), ",")
-	if !ok {
-		return Role{}, fmt.Errorf("malformed role attribute %q", v)
+var (
+	roleARN     = regexp.MustCompile(`^arn:aws[a-z-]*:iam::\d{12}:role/[\w+=,.@/-]+$`)
+	providerARN = regexp.MustCompile(`^arn:aws[a-z-]*:iam::\d{12}:saml-provider/[\w.-]+$`)
+)
+
+// Valid reports whether both ARNs are well formed, so they are safe to print
+// or to write into the AWS config file.
+func (r Role) Valid() bool {
+	return roleARN.MatchString(r.RoleARN) && providerARN.MatchString(r.PrincipalARN)
+}
+
+// parseRole accepts both orders of "role,principal" that IdPs emit. The SAML
+// response is not verified yet, so it rejects anything but well-formed ARNs.
+func parseRole(v string) (Role, bool) {
+	v = strings.TrimSpace(v)
+	// A role name may contain commas, a provider name may not.
+	if i := strings.LastIndex(v, ","); i >= 0 {
+		if r, ok := role(v[:i], v[i+1:]); ok {
+			return r, true
+		}
 	}
-	a, b = strings.TrimSpace(a), strings.TrimSpace(b)
-	if strings.Contains(a, ":saml-provider/") {
-		a, b = b, a
+	if i := strings.Index(v, ","); i >= 0 {
+		return role(v[i+1:], v[:i])
 	}
-	if !strings.Contains(a, ":role/") || !strings.Contains(b, ":saml-provider/") {
-		return Role{}, fmt.Errorf("malformed role attribute %q", v)
-	}
-	return Role{RoleARN: a, PrincipalARN: b}, nil
+	return Role{}, false
+}
+
+func role(arn, provider string) (Role, bool) {
+	r := Role{RoleARN: strings.TrimSpace(arn), PrincipalARN: strings.TrimSpace(provider)}
+	return r, r.Valid()
 }
 
 func attributeValues(doc, name string) ([]string, error) {

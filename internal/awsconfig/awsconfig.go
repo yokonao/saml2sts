@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode"
 )
 
 // Prefix starts the name of every profile saml2sts manages.
@@ -26,6 +27,21 @@ type Profile struct {
 	CredentialProcess string
 	Region            string
 	EndpointURL       string
+}
+
+var profileName = regexp.MustCompile(`^[\w.@+=,/-]+$`)
+
+// validate keeps a value from adding lines or sections to the file.
+func (p Profile) validate() error {
+	if !profileName.MatchString(p.Name) {
+		return fmt.Errorf("invalid profile name %q", p.Name)
+	}
+	for _, v := range []string{p.CredentialProcess, p.Region, p.EndpointURL} {
+		if strings.ContainsFunc(v, unicode.IsControl) {
+			return fmt.Errorf("profile %s: control character in %q", p.Name, v)
+		}
+	}
+	return nil
 }
 
 func (p Profile) section() string {
@@ -80,6 +96,11 @@ type Change struct {
 
 // Sync makes the saml2sts-* profiles of the file at path exactly profiles.
 func Sync(path string, profiles []Profile, dryRun bool) (Change, error) {
+	for _, p := range profiles {
+		if err := p.validate(); err != nil {
+			return Change{}, err
+		}
+	}
 	old, err := os.ReadFile(path)
 	if err != nil && !os.IsNotExist(err) {
 		return Change{}, err

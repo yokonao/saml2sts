@@ -12,6 +12,7 @@ package store
 import (
 	"crypto/subtle"
 	"encoding/json"
+	"slices"
 	"time"
 
 	"github.com/yokonao/saml2sts/internal/federation"
@@ -111,13 +112,14 @@ func DeleteChoice() error { return keychain.Delete(choiceItem) }
 // WriteRoles remembers the roles the last SAML response allowed.
 func WriteRoles(roles []saml.Role) error { return write(rolesItem, roles) }
 
-// ReadRoles returns the roles the last SAML response allowed, or nil.
+// ReadRoles returns the roles the last SAML response allowed, or nil. It
+// drops malformed roles, which earlier versions may have saved.
 func ReadRoles() ([]saml.Role, error) {
 	r, err := read[[]saml.Role](rolesItem)
 	if r == nil || err != nil {
 		return nil, err
 	}
-	return *r, nil
+	return slices.DeleteFunc(*r, func(r saml.Role) bool { return !r.Valid() }), nil
 }
 
 // ReadCache returns nil when the role has no cached credentials.
