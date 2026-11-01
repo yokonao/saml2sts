@@ -10,14 +10,12 @@ import (
 	"fmt"
 	"io"
 	"net/url"
-	"os"
 	"os/exec"
-	"path/filepath"
-	"syscall"
 	"time"
 
 	"github.com/yokonao/saml2sts/internal/config"
 	"github.com/yokonao/saml2sts/internal/federation"
+	"github.com/yokonao/saml2sts/internal/flock"
 	"github.com/yokonao/saml2sts/internal/saml"
 	"github.com/yokonao/saml2sts/internal/store"
 )
@@ -178,25 +176,7 @@ func idpURL(raw, nonce string) (string, error) {
 
 // lock serializes logins, so concurrent credential_process calls open the
 // browser once and the rest read the cache.
-func lock() (func(), error) {
-	dir, err := os.UserCacheDir()
-	if err != nil {
-		return nil, err
-	}
-	dir = filepath.Join(dir, "saml2sts")
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return nil, err
-	}
-	f, err := os.OpenFile(filepath.Join(dir, "lock"), os.O_CREATE|os.O_RDWR, 0o600)
-	if err != nil {
-		return nil, err
-	}
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
-		_ = f.Close()
-		return nil, err
-	}
-	return func() { _ = f.Close() }, nil
-}
+func lock() (func(), error) { return flock.Lock("lock") }
 
 func (o Options) logf(format string, args ...any) {
 	_, _ = fmt.Fprintf(o.Log, format, args...)
