@@ -30,8 +30,10 @@ func runDoctor(t *testing.T) (string, error) {
 // writeManifest writes a Chrome host manifest into dir/NativeMessagingHosts.
 func writeManifest(t *testing.T, dir, hostPath string) {
 	t.Helper()
-	b, err := json.Marshal(hostManifest{Name: defaultHostName, Description: "saml2sts", Path: hostPath, Type: "stdio",
-		AllowedOrigins: []string{"chrome-extension://" + chromeID + "/"}})
+	b, err := json.Marshal(hostManifest{
+		Name: defaultHostName, Description: "saml2sts", Path: hostPath, Type: "stdio",
+		AllowedOrigins: []string{"chrome-extension://" + chromeID + "/"},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
