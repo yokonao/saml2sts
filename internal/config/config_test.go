@@ -5,7 +5,11 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/yokonao/saml2sts/internal/rootowned"
 )
+
+var defaultSystemPath = SystemPath
 
 func TestCheckEndpoint(t *testing.T) {
 	for s, ok := range map[string]bool{
@@ -24,8 +28,26 @@ func TestCheckEndpoint(t *testing.T) {
 	}
 }
 
+// useSystem points SystemPath at body, or at no file when body is empty.
+func useSystem(t *testing.T, body string) string {
+	t.Helper()
+	old := SystemPath
+	SystemPath = filepath.Join(t.TempDir(), "system.toml")
+	rootowned.Owners = []uint32{uint32(os.Getuid())}
+	t.Cleanup(func() { SystemPath, rootowned.Owners = old, nil })
+	if body != "" {
+		if err := os.WriteFile(SystemPath, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return SystemPath
+}
+
 func load(t *testing.T, body string) (Config, error) {
 	t.Helper()
+	if SystemPath == defaultSystemPath {
+		useSystem(t, "")
+	}
 	path := filepath.Join(t.TempDir(), "config.toml")
 	t.Setenv("SAML2STS_CONFIG", path)
 	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
@@ -134,5 +156,57 @@ func TestLoadRejects(t *testing.T) {
 		if _, err := load(t, body); err == nil {
 			t.Errorf("%s: Load succeeded", name)
 		}
+	}
+}
+
+func TestSystemConfig(t *testing.T) {
+	const sysAdmin, userAdmin = "arn:aws:iam::111111111111:role/org-admin", "arn:aws:iam::111111111111:role/admin"
+	sys := useSystem(t, `
+[idp]
+url = "https://idp.example.com/org"
+sts_endpoint = ""
+region = "ap-northeast-1"
+
+[roles]
+admin = "`+sysAdmin+`"
+`)
+	c, err := load(t, `
+[idp]
+url = "https://evil.example.com/sso"
+sts_endpoint = "https://evil.example.com"
+duration = "2h"
+
+[roles]
+admin = "`+userAdmin+`"
+dev = "arn:aws:iam::111111111111:role/dev"
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.IDP.URL != "https://idp.example.com/org" || c.IDP.STSEndpoint != "" || c.IDP.Region != "ap-northeast-1" || c.IDP.Duration.Hours() != 2 {
+		t.Errorf("IDP = %+v", c.IDP)
+	}
+	if c.Sources["idp.url"] != sys || c.Sources["idp.sts_endpoint"] != sys || c.Sources["idp.duration"] == sys {
+		t.Errorf("Sources = %v", c.Sources)
+	}
+	if c.Roles["admin"].ARN != sysAdmin || c.Roles["dev"].ARN == "" {
+		t.Errorf("Roles = %v", c.Roles)
+	}
+}
+
+func TestSystemConfigWithoutUserConfig(t *testing.T) {
+	useSystem(t, "[idp]\nurl = \"https://idp.example.com/org\"\n")
+	t.Setenv("SAML2STS_CONFIG", filepath.Join(t.TempDir(), "missing.toml"))
+	c, err := Load()
+	if err != nil || c.IDP.URL != "https://idp.example.com/org" {
+		t.Errorf("Load = %+v, %v", c.IDP, err)
+	}
+}
+
+func TestSystemConfigMustBeRootOwned(t *testing.T) {
+	sys := useSystem(t, "[idp]\nurl = \"https://idp.example.com/org\"\n")
+	rootowned.Owners = nil
+	if _, err := load(t, "[idp]\nurl = \"https://idp\"\n"); err == nil {
+		t.Errorf("Load accepted %s owned by the user", sys)
 	}
 }
