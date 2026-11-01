@@ -81,6 +81,16 @@ Without them, a program running as a user could point `sts_endpoint` at its own 
 
 Leave `[roles]` short names and `[profiles]` to users unless you want them the same everywhere. Fix `duration` too if you want one session length.
 
+To decide what the [agent](agent.md) gives work machines, set `[remote] accounts` and `roles`, which replace the user's, and `confirm`, which adds to the user's:
+
+```toml
+[remote]
+accounts = ["222222222222"]  # development accounts only
+confirm = ["arn:aws:iam::222222222222:role/admin"]
+```
+
+A temporary agent, `saml2sts agent exec`, shares every role regardless, since it lasts only as long as one command; `confirm` still applies to it.
+
 ## Register the native messaging host for the whole machine
 
 Register the binary for every user:

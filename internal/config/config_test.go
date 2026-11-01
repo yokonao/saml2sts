@@ -143,6 +143,33 @@ development = "`+dev+`"
 	}
 }
 
+func TestRemote(t *testing.T) {
+	const dev, admin, other = "arn:aws:iam::111111111111:role/dev", "arn:aws:iam::222222222222:role/admin", "arn:aws:iam::333333333333:role/dev"
+	c, err := load(t, `
+[idp]
+url = "https://idp.example.com/sso"
+
+[roles]
+admin = "`+admin+`"
+
+[remote]
+accounts = ["111111111111"]
+roles = ["admin"]
+confirm = ["admin"]
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for arn, want := range map[string]bool{dev: true, admin: true, other: false} {
+		if got := c.Remote.Shares(arn); got != want {
+			t.Errorf("Shares(%s) = %v", arn, got)
+		}
+	}
+	if !c.Remote.NeedsConfirm(admin) || c.Remote.NeedsConfirm(dev) {
+		t.Errorf("Confirm = %v", c.Remote.Confirm)
+	}
+}
+
 func TestLoadRejects(t *testing.T) {
 	for name, body := range map[string]string{
 		"no url":         "[idp]\nregion = \"us-east-1\"",
@@ -152,6 +179,9 @@ func TestLoadRejects(t *testing.T) {
 		"role table key": "[idp]\nurl = \"https://idp\"\n[roles]\nx = { arn = \"arn:aws:iam::111111111111:role/x\", ttl = \"1h\" }",
 		"role duration":  "[idp]\nurl = \"https://idp\"\n[roles]\nx = { arn = \"arn:aws:iam::111111111111:role/x\", duration = \"soon\" }",
 		"two durations":  "[idp]\nurl = \"https://idp\"\n[roles]\nx = { arn = \"arn:aws:iam::111111111111:role/x\", duration = \"1h\" }\ny = { arn = \"arn:aws:iam::111111111111:role/x\", duration = \"2h\" }",
+		"remote account": "[idp]\nurl = \"https://idp\"\n[remote]\naccounts = [\"1234\"]",
+		"remote role":    "[idp]\nurl = \"https://idp\"\n[remote]\nroles = [\"developer\"]",
+		"confirm role":   "[idp]\nurl = \"https://idp\"\n[remote]\nconfirm = [\"admin\"]",
 	} {
 		if _, err := load(t, body); err == nil {
 			t.Errorf("%s: Load succeeded", name)

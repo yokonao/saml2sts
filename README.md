@@ -88,7 +88,12 @@ saml2sts doctor  # check the setup without signing in, and say what to fix
 
 Credentials are cached per role in the macOS Keychain, never in `~/.aws/credentials`. When they are about to expire, the next `creds` or `exec` opens the browser again; a live IdP session finishes that sign-in without you.
 
-For a work machine that is not the sign-in machine, see the proposed [agent](docs/agent.md).
+For a work machine that is not the sign-in machine, run the [agent](docs/agent.md) on the sign-in machine and forward its socket:
+
+```sh
+saml2sts agent  # resident: shares only the accounts and roles [remote] names
+saml2sts agent exec -- ssh devbox  # temporary: shares every role until ssh exits
+```
 
 ## Try it locally
 

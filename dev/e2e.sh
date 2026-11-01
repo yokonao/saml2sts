@@ -128,3 +128,24 @@ for role in poc-admin poc-readonly; do
   -H "x-amz-security-token: $AWS_SESSION_TOKEN" \
   -d "Action=GetCallerIdentity&Version=2011-06-15" http://127.0.0.1:4566/' | grep -o '<Arn>[^<]*</Arn>'
 done
+
+echo "--- a resident agent shares only what [remote] names"
+sock="$work/agent.sock"
+"$bin" agent --socket "$sock" 2> "$work/agent.log" &
+agent_pid=$!
+i=0; until [ -S "$sock" ] || [ $i -ge 50 ]; do sleep 0.1; i=$((i + 1)); done
+if SAML2STS_AGENT_SOCK="$sock" "$bin" creds --role poc-admin 2> "$work/refused.log"; then
+  echo "the agent shared a role [remote] does not name" >&2
+  exit 1
+fi
+cat "$work/refused.log"
+grep -q "not shared" "$work/refused.log"
+printf '\n[remote]\nroles = ["poc-readonly"]\n' >> "$SAML2STS_CONFIG"
+SAML2STS_AGENT_SOCK="$sock" "$bin" roles
+SAML2STS_AGENT_SOCK="$sock" "$bin" exec --role poc-readonly -- sh -c 'echo "exec through the agent: $SAML2STS_ROLE"'
+kill $agent_pid
+wait $agent_pid || true
+cat "$work/agent.log" >&2
+
+echo "--- a temporary agent shares every role while its command runs"
+"$bin" agent exec -- sh -c '"$0" creds --role poc-admin' "$bin" | python3 -I -c 'import json,sys; d=json.load(sys.stdin); print("creds through the agent, expiring", d["Expiration"])'

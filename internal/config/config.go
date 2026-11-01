@@ -31,6 +31,7 @@ type Config struct {
 	// for profiles sync to write instead of its own names. Load resolves
 	// them to ARNs.
 	Profiles map[string]string `toml:"profiles"`
+	Remote   Remote            `toml:"remote"`
 	// Sources maps each [idp] key set to the file that set it, such as
 	// "idp.url".
 	Sources map[string]string `toml:"-"`
@@ -73,6 +74,35 @@ func (r *Role) UnmarshalTOML(v any) error {
 	return fmt.Errorf("must be a role ARN or a table with arn and duration, not %T", v)
 }
 
+// Remote says what the agent gives work machines. Load resolves names from
+// [roles] in Roles and Confirm to ARNs.
+type Remote struct {
+	// Accounts and Roles are what a resident agent shares: AWS account IDs,
+	// and roles. A temporary agent shares every role.
+	Accounts []string `toml:"accounts"`
+	Roles    []string `toml:"roles"`
+	// Confirm lists roles the agent issues credentials for only after the
+	// user allows it on the sign-in machine.
+	Confirm []string `toml:"confirm"`
+}
+
+// Shares reports whether a resident agent gives work machines arn.
+func (r Remote) Shares(arn string) bool {
+	return slices.Contains(r.Roles, arn) || slices.Contains(r.Accounts, account(arn))
+}
+
+// NeedsConfirm reports whether the user must allow credentials for arn.
+func (r Remote) NeedsConfirm(arn string) bool { return slices.Contains(r.Confirm, arn) }
+
+// account returns the account ID of a role ARN.
+func account(arn string) string {
+	parts := strings.SplitN(arn, ":", 6)
+	if len(parts) < 6 {
+		return ""
+	}
+	return parts[4]
+}
+
 // IDP is where to sign in and how to reach STS.
 type IDP struct {
 	// URL starts IdP-initiated SSO to AWS.
@@ -95,6 +125,7 @@ func (d *duration) UnmarshalText(b []byte) error {
 
 var (
 	validRegion = regexp.MustCompile(`^[a-z]{2}(-[a-z]+)+-[0-9]+$`)
+	accountID   = regexp.MustCompile(`^[0-9]{12}$`)
 	roleARN     = regexp.MustCompile(`^arn:aws[a-z-]*:iam::[0-9]{12}:role/.+$`)
 )
 
@@ -194,6 +225,20 @@ func Load() (Config, error) {
 		}
 		c.Profiles[name] = arn
 	}
+	for _, a := range c.Remote.Accounts {
+		if !accountID.MatchString(a) {
+			return Config{}, fmt.Errorf("[remote] accounts: %q is not an AWS account ID", a)
+		}
+	}
+	for key, roles := range map[string][]string{"roles": c.Remote.Roles, "confirm": c.Remote.Confirm} {
+		for i, role := range roles {
+			arn, err := c.ResolveRole(role)
+			if err != nil {
+				return Config{}, fmt.Errorf("[remote] %s: %w", key, err)
+			}
+			roles[i] = arn
+		}
+	}
 	return c, nil
 }
 
@@ -234,6 +279,15 @@ func merge(c *Config, sys Config, md *toml.MetaData) {
 		c.Profiles = map[string]string{}
 	}
 	maps.Copy(c.Profiles, sys.Profiles)
+	// The organization decides what work machines may get, and the user can
+	// only ask for more confirmations.
+	if md.IsDefined("remote", "accounts") {
+		c.Remote.Accounts = sys.Remote.Accounts
+	}
+	if md.IsDefined("remote", "roles") {
+		c.Remote.Roles = sys.Remote.Roles
+	}
+	c.Remote.Confirm = append(c.Remote.Confirm, sys.Remote.Confirm...)
 }
 
 // ResolveRole turns a short name from [roles], or a role ARN, into a role ARN.
