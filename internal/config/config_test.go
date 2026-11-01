@@ -97,11 +97,36 @@ prod = "`+prod+`"
 	}
 }
 
+func TestProfiles(t *testing.T) {
+	const dev = "arn:aws:iam::111111111111:role/dev"
+	c, err := load(t, `
+[idp]
+url = "https://idp.example.com/sso"
+
+[roles]
+developer = "`+dev+`"
+
+[profiles]
+dev = "developer"
+development = "`+dev+`"
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := c.ProfileNames(dev); len(got) != 2 || got[0] != "dev" || got[1] != "development" {
+		t.Errorf("ProfileNames = %v", got)
+	}
+	if got := c.ProfileNames("arn:aws:iam::111111111111:role/other"); got != nil {
+		t.Errorf("ProfileNames(other) = %v", got)
+	}
+}
+
 func TestLoadRejects(t *testing.T) {
 	for name, body := range map[string]string{
 		"no url":         "[idp]\nregion = \"us-east-1\"",
 		"remote http":    "[idp]\nurl = \"https://idp\"\nsts_endpoint = \"http://sts.example.com\"",
 		"bad role alias": "[idp]\nurl = \"https://idp\"\n[roles]\nx = \"admin\"",
+		"profile role":   "[idp]\nurl = \"https://idp\"\n[profiles]\ndev = \"developer\"",
 		"role table key": "[idp]\nurl = \"https://idp\"\n[roles]\nx = { arn = \"arn:aws:iam::111111111111:role/x\", ttl = \"1h\" }",
 		"role duration":  "[idp]\nurl = \"https://idp\"\n[roles]\nx = { arn = \"arn:aws:iam::111111111111:role/x\", duration = \"soon\" }",
 		"two durations":  "[idp]\nurl = \"https://idp\"\n[roles]\nx = { arn = \"arn:aws:iam::111111111111:role/x\", duration = \"1h\" }\ny = { arn = \"arn:aws:iam::111111111111:role/x\", duration = \"2h\" }",

@@ -1,5 +1,5 @@
-// Package awsconfig writes the saml2sts-* profiles of the AWS config file and
-// leaves every other line of it as it was.
+// Package awsconfig writes the profiles saml2sts manages in the AWS config
+// file and leaves every other line of it as it was.
 package awsconfig
 
 import (
@@ -17,8 +17,8 @@ import (
 // Prefix starts the name of every profile saml2sts manages.
 const Prefix = "saml2sts-"
 
-// marker sits inside each managed section. It is not what marks a section as
-// managed, the name prefix is, but tells a reader where it came from.
+// marker sits inside each section saml2sts writes. A section is managed when
+// it has the marker or its name starts with Prefix.
 const marker = "# managed by saml2sts profiles sync"
 
 // Profile is one profile to write.
@@ -94,18 +94,29 @@ type Change struct {
 	Removed []string
 }
 
-// Sync makes the saml2sts-* profiles of the file at path exactly profiles.
+// Sync makes the managed profiles of the file at path exactly profiles. It
+// refuses to replace a profile it did not write.
 func Sync(path string, profiles []Profile, dryRun bool) (Change, error) {
+	seen := map[string]bool{}
 	for _, p := range profiles {
 		if err := p.validate(); err != nil {
 			return Change{}, err
 		}
+		if seen[p.Name] {
+			return Change{}, fmt.Errorf("two roles want the profile %s", p.Name)
+		}
+		seen[p.Name] = true
 	}
 	old, err := os.ReadFile(path)
 	if err != nil && !os.IsNotExist(err) {
 		return Change{}, err
 	}
-	kept, removed := splitManaged(string(old))
+	kept, removed, others := splitManaged(string(old))
+	for _, name := range others {
+		if seen[name] {
+			return Change{}, fmt.Errorf("%s already has a profile %s that saml2sts did not write; rename or remove it first", path, name)
+		}
+	}
 	var ch Change
 	var b strings.Builder
 	b.WriteString(kept)
@@ -145,30 +156,52 @@ func Has(path, name string) bool {
 	return false
 }
 
-// splitManaged drops the saml2sts-* sections from an INI file and returns the
-// rest unchanged with the names it dropped. Comments and blank lines at the
-// end of a dropped section stay, since they introduce the section after it.
-func splitManaged(s string) (string, []string) {
-	var kept strings.Builder
-	var removed, trailing []string
-	skipping := false
-	for _, line := range strings.SplitAfter(s, "\n") {
+// splitManaged drops the managed sections from an INI file and returns the
+// rest unchanged, the names it dropped, and the profiles it kept. Comments
+// and blank lines at the end of a dropped section stay, since they introduce
+// the section after it.
+func splitManaged(s string) (string, []string, []string) {
+	lines := strings.SplitAfter(s, "\n")
+	managed := map[int]bool{}
+	header := -1
+	for i, line := range lines {
 		t := strings.TrimSpace(line)
 		switch {
 		case strings.HasPrefix(t, "["):
-			name, ok := profileHeader(line)
-			managed := ok && strings.HasPrefix(name, Prefix)
-			if skipping && !managed {
-				for len(trailing) > 0 && strings.TrimSpace(trailing[0]) == "" && strings.HasSuffix(kept.String(), "\n\n") {
+			header = -1
+			if name, ok := profileHeader(line); ok {
+				header = i
+				managed[i] = strings.HasPrefix(name, Prefix)
+			}
+		case t == marker && header >= 0:
+			managed[header] = true
+		}
+	}
+
+	var kept strings.Builder
+	var removed, others, trailing []string
+	skipping := false
+	for i, line := range lines {
+		t := strings.TrimSpace(line)
+		switch {
+		case strings.HasPrefix(t, "["):
+			name, _ := profileHeader(line)
+			if skipping && !managed[i] {
+				for len(trailing) > 0 && strings.TrimSpace(trailing[0]) == "" && (kept.Len() == 0 || strings.HasSuffix(kept.String(), "\n\n")) {
 					trailing = trailing[1:]
 				}
 				kept.WriteString(strings.Join(trailing, ""))
 			}
 			trailing = nil
-			skipping = managed
-			if managed {
+			skipping = managed[i]
+			if skipping {
 				removed = append(removed, name)
 				continue
+			}
+			if name != "" {
+				others = append(others, name)
+			} else if t == "[default]" {
+				others = append(others, "default")
 			}
 		case skipping && (t == "" || strings.HasPrefix(t, "#") || strings.HasPrefix(t, ";")):
 			trailing = append(trailing, line)
@@ -179,7 +212,7 @@ func splitManaged(s string) (string, []string) {
 		}
 		kept.WriteString(line)
 	}
-	return strings.TrimRight(kept.String(), "\n") + newlineIfAny(kept.String()), removed
+	return strings.TrimRight(kept.String(), "\n") + newlineIfAny(kept.String()), removed, others
 }
 
 func profileHeader(line string) (string, bool) {

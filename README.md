@@ -47,7 +47,7 @@ saml2sts profiles sync  # signs in once to read your roles, assuming none of the
 aws s3 ls --profile saml2sts-prod-admin  # signs in for that role when it has no credentials yet
 ```
 
-`profiles sync` writes to `~/.aws/config` only profiles named `saml2sts-*`: `saml2sts-<name>` for roles in `[roles]`, `saml2sts-<account>-<role>` for the rest. It removes those of roles that are gone and leaves everything else in the file alone. Each one names the command to run, not credentials:
+`profiles sync` writes to `~/.aws/config` a profile per role: `saml2sts-<name>` for roles in `[roles]`, `saml2sts-<account>-<role>` for the rest. It removes those of roles that are gone and leaves everything else in the file alone. Each one names the command to run, not credentials:
 
 ```ini
 [profile saml2sts-prod-admin]
@@ -55,7 +55,17 @@ aws s3 ls --profile saml2sts-prod-admin  # signs in for that role when it has no
 credential_process = saml2sts creds --role arn:aws:iam::123456789012:role/admin
 ```
 
-Run `saml2sts profiles sync --refresh` when your roles change, and `--dry-run` to see the changes first. You can also write such profiles by hand under any name.
+Run `saml2sts profiles sync --refresh` when your roles change, and `--dry-run` to see the changes first.
+
+To keep the profile names your scripts already use, name them in `[profiles]`, by role ARN or a name from `[roles]`:
+
+```toml
+[profiles]
+dev = "arn:aws:iam::123456789012:role/developer"
+prod = "prod-admin"
+```
+
+`profiles sync` then writes `[profile dev]` and `[profile prod]` instead of `saml2sts-*` names for those roles. It manages a profile only when it carries the `# managed by saml2sts profiles sync` line, or its name starts with `saml2sts-`, and refuses to replace a profile of the same name that it did not write; remove or rename that one first.
 
 Each sign-in gets credentials for one role only. Besides the profiles:
 

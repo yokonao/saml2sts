@@ -108,8 +108,7 @@ func describeRole(cfg config.Config, arn string) string {
 
 // profileHint tells how to use the role's credentials from the AWS CLI.
 func profileHint(w io.Writer, cfg config.Config, arn string) {
-	alias, _ := cfg.Alias(arn)
-	name := awsconfig.ProfileName(alias, arn)
+	name := profileNames(cfg, arn)[0]
 	path, err := awsconfig.Path()
 	if err == nil && awsconfig.Has(path, name) {
 		_, _ = fmt.Fprintf(w, "saml2sts: use them with aws --profile %s\n", name)

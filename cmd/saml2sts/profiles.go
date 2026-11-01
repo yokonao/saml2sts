@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"maps"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -35,9 +37,9 @@ func newProfilesSyncCmd() *cobra.Command {
 	)
 	cmd := &cobra.Command{
 		Use:   "sync",
-		Short: "Write an " + awsconfig.Prefix + "* profile to the AWS config file for each role of the last sign-in",
-		Long: "Write an " + awsconfig.Prefix + "* profile to the AWS config file for each role your IdP allows, " +
-			"and remove the " + awsconfig.Prefix + "* profiles of roles no longer there. Other profiles are left alone. " +
+		Short: "Write an AWS profile to the AWS config file for each role of the last sign-in",
+		Long: "Write an AWS profile to the AWS config file for each role your IdP allows, named by [profiles] in the config file or " + awsconfig.Prefix + "*, " +
+			"and remove the profiles it wrote for roles no longer there. Other profiles are left alone. " +
 			"With no roles from an earlier sign-in, or with --refresh, it signs in first to read them, assuming no role.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -67,14 +69,22 @@ func newProfilesSyncCmd() *cobra.Command {
 				return err
 			}
 			var profiles []awsconfig.Profile
+			allowed := map[string]bool{}
 			for _, r := range roles {
-				alias, _ := cfg.Alias(r.RoleARN)
-				profiles = append(profiles, awsconfig.Profile{
-					Name:              awsconfig.ProfileName(alias, r.RoleARN),
-					CredentialProcess: shellQuote(command) + " creds --role " + r.RoleARN,
-					Region:            region,
-					EndpointURL:       endpointURL,
-				})
+				allowed[r.RoleARN] = true
+				for _, name := range profileNames(cfg, r.RoleARN) {
+					profiles = append(profiles, awsconfig.Profile{
+						Name:              name,
+						CredentialProcess: shellQuote(command) + " creds --role " + r.RoleARN,
+						Region:            region,
+						EndpointURL:       endpointURL,
+					})
+				}
+			}
+			for _, name := range slices.Sorted(maps.Keys(cfg.Profiles)) {
+				if !allowed[cfg.Profiles[name]] {
+					_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "saml2sts: skipping [profiles] %s; your IdP does not allow %s\n", name, cfg.Profiles[name])
+				}
 			}
 			ch, err := awsconfig.Sync(path, profiles, dryRun)
 			if err != nil {
@@ -104,6 +114,16 @@ func newProfilesSyncCmd() *cobra.Command {
 	cmd.Flags().StringVar(&region, "region", "", "region to set in each profile")
 	cmd.Flags().StringVar(&endpointURL, "endpoint-url", "", "endpoint_url to set in each profile, such as a local emulator")
 	return cmd
+}
+
+// profileNames names the profiles of a role: those [profiles] gives it, or
+// else the one awsconfig.ProfileName makes.
+func profileNames(cfg config.Config, arn string) []string {
+	if names := cfg.ProfileNames(arn); len(names) > 0 {
+		return names
+	}
+	alias, _ := cfg.Alias(arn)
+	return []string{awsconfig.ProfileName(alias, arn)}
 }
 
 var plainWord = regexp.MustCompile(`^[A-Za-z0-9_./:@-]+$`)
